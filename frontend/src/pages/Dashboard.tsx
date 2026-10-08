@@ -219,6 +219,102 @@ export const Dashboard: React.FC = () => {
         />
       </div>
 
+      {/* Camera Matrix Ingest Grid (4-up live feeds) */}
+      <div className="glass-panel p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white shadow-xs">
+              <Camera className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+                Live CCTV Camera Matrix
+              </h2>
+              <p className="text-xs text-slate-500">Real-time edge streams with polygon safety overlay</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/live-monitoring')}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+          >
+            <span>Full Monitor Studio</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              id: 'CAM-01',
+              name: 'North Entrance & Aisle A',
+              location: 'North Entry Hallway',
+              zone: 'ENTRANCE (Aisle A)',
+              status: 'ONLINE',
+              fps: '30 FPS',
+              count: 4,
+              color: 'border-purple-200 bg-purple-50/20'
+            },
+            {
+              id: 'CAM-02',
+              name: 'Checkout & Cashier Quad',
+              location: 'Front Cashier Lanes',
+              zone: 'CHECKOUT-01 (Lanes)',
+              status: 'ONLINE',
+              fps: '30 FPS',
+              count: 6,
+              color: 'border-amber-200 bg-amber-50/20'
+            },
+            {
+              id: 'CAM-03',
+              name: 'Snack & Grocery Aisles',
+              location: 'Center Merchandise Rows',
+              zone: 'AISLE-B (Shelves)',
+              status: 'ONLINE',
+              fps: '25 FPS',
+              count: 2,
+              color: 'border-blue-200 bg-blue-50/20'
+            },
+            {
+              id: 'CAM-04',
+              name: 'Restricted Back Vault',
+              location: 'High-Value Storage',
+              zone: 'STAFF-STORAGE (Vault)',
+              status: isLockdown ? 'ALERT' : 'SECURED',
+              fps: '15 FPS',
+              count: isLockdown ? 1 : 0,
+              color: isLockdown ? 'border-red-300 bg-red-50/30 animate-pulse' : 'border-emerald-200 bg-emerald-50/20'
+            },
+          ].map(cam => (
+            <div
+              key={cam.id}
+              onClick={() => navigate('/live-monitoring')}
+              className={`rounded-2xl border p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${cam.color} bg-white`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-mono text-xs font-bold text-slate-900">{cam.id}</span>
+                </div>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                  {cam.fps}
+                </span>
+              </div>
+
+              <h4 className="text-xs font-bold text-slate-800 line-clamp-1">{cam.name}</h4>
+              <p className="text-[11px] text-slate-500 line-clamp-1 mb-3">{cam.location}</p>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+                <span className="text-slate-500 font-medium">{cam.zone}</span>
+                <span className="font-bold text-slate-800 flex items-center gap-1">
+                  <Users className="h-3 w-3 text-slate-400" />
+                  {cam.count}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Middle Section: Active Alerts Priority List & Live Zone Occupancy */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Active Alerts Priority List (7 cols) */}

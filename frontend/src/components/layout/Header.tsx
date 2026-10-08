@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Clock, Bell, Shield, Wifi, WifiOff, Menu } from 'lucide-react';
+import { RefreshCw, Clock, Bell, Shield, Wifi, WifiOff, Menu, Maximize2, Minimize2, Zap } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
 interface HeaderProps {
@@ -11,6 +11,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleMobileMenu }) => {
   const { activeEvents, health, isRefreshing, refreshData, lastUpdated } = useStore();
   const [time, setTime] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   useEffect(() => {
     const update = () => {
@@ -23,6 +24,18 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleMobileM
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      setIsFullscreen(false);
+    }
+  };
 
   const criticalCount = (Array.isArray(activeEvents) ? activeEvents : []).filter(e => e.severity === 'CRITICAL').length;
 
@@ -45,6 +58,12 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleMobileM
       </div>
 
       <div className="flex items-center space-x-2 sm:space-x-3">
+        {/* Edge Engine Latency */}
+        <div className="hidden xl:flex items-center space-x-1.5 rounded-xl bg-purple-50/80 border border-purple-200/60 px-2.5 py-1.5 text-[11px] font-semibold text-purple-800 shadow-2xs">
+          <Zap className="h-3 w-3 text-purple-600" />
+          <span>Edge CV: 16ms</span>
+        </div>
+
         {/* Live Clock */}
         <div className="hidden lg:flex items-center space-x-1.5 rounded-xl bg-slate-100/80 backdrop-blur-xs border border-slate-200/60 px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 shadow-2xs">
           <Clock className="h-3.5 w-3.5 text-slate-500" />
@@ -91,6 +110,15 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleMobileM
               : 'Store Safe'}
           </span>
         </div>
+
+        {/* Fullscreen SOC Toggle */}
+        <button
+          onClick={toggleFullscreen}
+          title="Toggle Fullscreen Security Console"
+          className="hidden sm:flex items-center rounded-xl border border-slate-200/80 bg-white/80 p-2 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+        >
+          {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+        </button>
 
         {/* Refresh Button */}
         <button
