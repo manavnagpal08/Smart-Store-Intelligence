@@ -1,8 +1,9 @@
 """Backend configuration and environment settings."""
 
 import os
-from typing import List
-from pydantic import ConfigDict
+import json
+from typing import List, Union
+from pydantic import ConfigDict, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -23,14 +24,22 @@ class Settings(BaseSettings):
     PORT: int = int(os.getenv("PORT", 8000))
     DEBUG: bool = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
 
-    # CORS
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "*"
-    ]
+    # CORS (Supports "*", comma-separated string, or JSON array)
+    CORS_ORIGINS: Union[List[str], str] = ["*"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",") if i.strip()]
+        elif isinstance(v, (list, str)):
+            if isinstance(v, str):
+                try:
+                    return json.loads(v)
+                except Exception:
+                    return [v]
+            return v
+        return ["*"]
 
     # Java Module Integration
     JAVA_BIN_DIR: str = os.getenv(
@@ -38,7 +47,7 @@ class Settings(BaseSettings):
         os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../java-module/bin"))
     )
 
-    model_config = ConfigDict(case_sensitive=True)
+    model_config = ConfigDict(case_sensitive=True, extra="ignore")
 
 
 settings = Settings()
