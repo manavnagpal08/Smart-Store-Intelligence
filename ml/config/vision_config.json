@@ -1,0 +1,62 @@
+{
+  "camera_id": "CAM-01",
+  "model_path": "yolov8n.pt",
+  "confidence_threshold": 0.40,
+  "tracker_type": "bytetrack.yaml",
+  "video_source": "datasets/sample/sample_cctv.mp4",
+  "output_json_path": "outputs/vision_results.json",
+  "output_video_path": "outputs/annotated_stream.mp4",
+  "sample_interval": 1,
+  "frame_skip": 1,
+  "display": false,
+  "zones": [
+    {
+      "zone_id": "ENTRANCE",
+      "name": "Store Entrance",
+      "type": "ENTRANCE",
+      "points": [
+        [20, 350],
+        [200, 350],
+        [200, 950],
+        [20, 950]
+      ],
+      "color": [255, 200, 0]
+    },
+    {
+      "zone_id": "AISLE-A",
+      "name": "Aisle A (Retail)",
+      "type": "AISLE",
+      "points": [
+        [210, 350],
+        [400, 350],
+        [400, 950],
+        [210, 950]
+      ],
+      "color": [0, 255, 128]
+    },
+    {
+      "zone_id": "CHECKOUT-01",
+      "name": "Checkout Counter",
+      "type": "CHECKOUT",
+      "points": [
+        [620, 350],
+        [800, 350],
+        [800, 950],
+        [620, 950]
+      ],
+      "color": [255, 128, 0]
+    },
+    {
+      "zone_id": "RESTRICTED",
+      "name": "Backroom / Storage",
+      "type": "RESTRICTED",
+      "points": [
+        [0, 0],
+        [810, 0],
+        [810, 320],
+        [0, 320]
+      ],
+      "color": [0, 0, 255]
+    }
+  ]
+}

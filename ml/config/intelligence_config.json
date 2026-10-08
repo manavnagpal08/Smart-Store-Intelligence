@@ -1,0 +1,69 @@
+{
+  "camera_id": "CAM-01",
+  "cooldown_frames": 15,
+  "output_events_path": "outputs/events.json",
+  "crowd_density": {
+    "enabled": true,
+    "persistence_frames": 5,
+    "thresholds": {
+      "AISLE": {
+        "low": 5,
+        "medium": 8,
+        "high": 12,
+        "critical": 18
+      },
+      "ENTRANCE": {
+        "low": 6,
+        "medium": 10,
+        "high": 15,
+        "critical": 22
+      },
+      "AISLE-A": {
+        "low": 4,
+        "medium": 7,
+        "high": 10,
+        "critical": 15
+      }
+    },
+    "default_thresholds": {
+      "low": 5,
+      "medium": 8,
+      "high": 12,
+      "critical": 18
+    }
+  },
+  "queue_congestion": {
+    "enabled": true,
+    "persistence_frames": 5,
+    "thresholds": {
+      "CHECKOUT-01": {
+        "low": 3,
+        "medium": 5,
+        "high": 8,
+        "critical": 12
+      },
+      "CHECKOUT-02": {
+        "low": 3,
+        "medium": 5,
+        "high": 8,
+        "critical": 12
+      }
+    },
+    "default_thresholds": {
+      "low": 3,
+      "medium": 5,
+      "high": 8,
+      "critical": 12
+    }
+  },
+  "restricted_area": {
+    "enabled": true,
+    "default_severity": "HIGH"
+  },
+  "aisle_obstruction": {
+    "enabled": true,
+    "persistence_frames": 15,
+    "min_stationary_count": 2,
+    "max_movement_px": 20.0
+  }
+}

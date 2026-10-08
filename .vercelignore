@@ -1,0 +1,11 @@
+.git
+.pytest_cache
+__pycache__
+*.pyc
+*.pt
+*.mp4
+.venv
+venv
+datasets/
+smart_store.db
+*.log

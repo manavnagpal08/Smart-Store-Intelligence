@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StoreEvent",
+  "description": "Schema for Smart Store Safety & Operations Intelligence Events (Phase 2)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "camera_id",
+    "zone_id",
+    "timestamp",
+    "severity",
+    "status"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^EVT-[0-9]{8}-[0-9]{4}$",
+      "description": "Unique structured event identifier (e.g. EVT-20260925-0001)"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "CROWD_DENSITY",
+        "QUEUE_CONGESTION",
+        "RESTRICTED_AREA_ENTRY",
+        "AISLE_OBSTRUCTION"
+      ],
+      "description": "Controlled operational event type"
+    },
+    "camera_id": {
+      "type": "string",
+      "description": "Camera ID where incident occurred"
+    },
+    "zone_id": {
+      "type": "string",
+      "description": "Store zone ID associated with the event"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp of event detection"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+      "description": "Calculated incident severity"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["DETECTED", "ACTIVE", "ACKNOWLEDGED", "RESOLVED"],
+      "description": "Lifecycle status of the incident"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable summary of the detected incident"
+    },
+    "people_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of people detected involved in the event"
+    },
+    "track_id": {
+      "type": "string",
+      "description": "Anonymous tracking ID for target-specific events (e.g. TRACK-001)"
+    },
+    "details": {
+      "type": "object",
+      "description": "Extended event metadata such as frame indices and duration"
+    },
+    "resolved_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when incident was resolved"
+    },
+    "acknowledged_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when incident was acknowledged by operator"
+    }
+  }
+}

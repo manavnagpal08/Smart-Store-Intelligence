@@ -1,0 +1,33 @@
+# Environments and Credentials
+.env
+.env.local
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+
+# Java
+*.class
+target/
+java-module/bin/
+*.jar
+
+# Databases & local storage
+*.db
+*.sqlite3
+
+# Outputs & Temporary media (keep sample dataset)
+outputs/annotated_stream.mp4
+
+# Node / React (Future Phase 4)
+node_modules/
+dist/
+build/

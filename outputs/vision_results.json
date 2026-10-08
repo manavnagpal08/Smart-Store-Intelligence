@@ -1,0 +1,1802 @@
+[
+  {
+    "timestamp": "2026-09-25T07:25:56.841871",
+    "camera_id": "CAM-01",
+    "frame_number": 1,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          48,
+          400,
+          245,
+          904
+        ],
+        "confidence": 0.878,
+        "center": [
+          146,
+          652
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          221,
+          409,
+          344,
+          860
+        ],
+        "confidence": 0.846,
+        "center": [
+          282,
+          634
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          397,
+          809,
+          878
+        ],
+        "confidence": 0.838,
+        "center": [
+          739,
+          637
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:05.749183",
+    "camera_id": "CAM-01",
+    "frame_number": 2,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          47,
+          399,
+          244,
+          903
+        ],
+        "confidence": 0.866,
+        "center": [
+          145,
+          651
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          221,
+          407,
+          345,
+          859
+        ],
+        "confidence": 0.828,
+        "center": [
+          283,
+          633
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          395,
+          810,
+          878
+        ],
+        "confidence": 0.851,
+        "center": [
+          740,
+          636
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:05.906416",
+    "camera_id": "CAM-01",
+    "frame_number": 3,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          48,
+          399,
+          245,
+          903
+        ],
+        "confidence": 0.865,
+        "center": [
+          146,
+          651
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          222,
+          407,
+          345,
+          858
+        ],
+        "confidence": 0.836,
+        "center": [
+          283,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          669,
+          391,
+          810,
+          876
+        ],
+        "confidence": 0.856,
+        "center": [
+          739,
+          633
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:06.062069",
+    "camera_id": "CAM-01",
+    "frame_number": 4,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          48,
+          399,
+          245,
+          903
+        ],
+        "confidence": 0.866,
+        "center": [
+          146,
+          651
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          222,
+          407,
+          345,
+          858
+        ],
+        "confidence": 0.836,
+        "center": [
+          283,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          393,
+          810,
+          876
+        ],
+        "confidence": 0.855,
+        "center": [
+          740,
+          634
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:06.190800",
+    "camera_id": "CAM-01",
+    "frame_number": 5,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          49,
+          399,
+          246,
+          904
+        ],
+        "confidence": 0.868,
+        "center": [
+          147,
+          651
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          223,
+          407,
+          346,
+          857
+        ],
+        "confidence": 0.835,
+        "center": [
+          284,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          388,
+          810,
+          874
+        ],
+        "confidence": 0.838,
+        "center": [
+          740,
+          631
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:06.331171",
+    "camera_id": "CAM-01",
+    "frame_number": 6,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          50,
+          399,
+          247,
+          904
+        ],
+        "confidence": 0.868,
+        "center": [
+          148,
+          651
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          224,
+          407,
+          347,
+          857
+        ],
+        "confidence": 0.835,
+        "center": [
+          285,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          387,
+          810,
+          873
+        ],
+        "confidence": 0.838,
+        "center": [
+          740,
+          630
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:06.462082",
+    "camera_id": "CAM-01",
+    "frame_number": 7,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          50,
+          398,
+          246,
+          903
+        ],
+        "confidence": 0.862,
+        "center": [
+          148,
+          650
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          223,
+          406,
+          347,
+          858
+        ],
+        "confidence": 0.832,
+        "center": [
+          285,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          388,
+          810,
+          872
+        ],
+        "confidence": 0.857,
+        "center": [
+          740,
+          630
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:06.587717",
+    "camera_id": "CAM-01",
+    "frame_number": 8,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          50,
+          398,
+          246,
+          903
+        ],
+        "confidence": 0.862,
+        "center": [
+          148,
+          650
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          223,
+          406,
+          347,
+          858
+        ],
+        "confidence": 0.832,
+        "center": [
+          285,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          388,
+          810,
+          872
+        ],
+        "confidence": 0.857,
+        "center": [
+          740,
+          630
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:06.724016",
+    "camera_id": "CAM-01",
+    "frame_number": 9,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          50,
+          398,
+          246,
+          903
+        ],
+        "confidence": 0.862,
+        "center": [
+          148,
+          650
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          223,
+          406,
+          347,
+          858
+        ],
+        "confidence": 0.831,
+        "center": [
+          285,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          388,
+          810,
+          872
+        ],
+        "confidence": 0.857,
+        "center": [
+          740,
+          630
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:06.855532",
+    "camera_id": "CAM-01",
+    "frame_number": 10,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          50,
+          398,
+          246,
+          903
+        ],
+        "confidence": 0.862,
+        "center": [
+          148,
+          650
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          223,
+          406,
+          347,
+          858
+        ],
+        "confidence": 0.831,
+        "center": [
+          285,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          388,
+          810,
+          872
+        ],
+        "confidence": 0.857,
+        "center": [
+          740,
+          630
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:06.992900",
+    "camera_id": "CAM-01",
+    "frame_number": 11,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          50,
+          398,
+          246,
+          903
+        ],
+        "confidence": 0.862,
+        "center": [
+          148,
+          650
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          223,
+          406,
+          347,
+          858
+        ],
+        "confidence": 0.831,
+        "center": [
+          285,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          388,
+          810,
+          872
+        ],
+        "confidence": 0.857,
+        "center": [
+          740,
+          630
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:07.124318",
+    "camera_id": "CAM-01",
+    "frame_number": 12,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          50,
+          397,
+          246,
+          902
+        ],
+        "confidence": 0.857,
+        "center": [
+          148,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          222,
+          405,
+          346,
+          858
+        ],
+        "confidence": 0.833,
+        "center": [
+          284,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          386,
+          810,
+          871
+        ],
+        "confidence": 0.846,
+        "center": [
+          740,
+          628
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:07.275428",
+    "camera_id": "CAM-01",
+    "frame_number": 13,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          50,
+          397,
+          246,
+          902
+        ],
+        "confidence": 0.852,
+        "center": [
+          148,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          222,
+          405,
+          346,
+          857
+        ],
+        "confidence": 0.829,
+        "center": [
+          284,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          386,
+          810,
+          872
+        ],
+        "confidence": 0.846,
+        "center": [
+          740,
+          629
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:07.478132",
+    "camera_id": "CAM-01",
+    "frame_number": 14,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          48,
+          398,
+          244,
+          902
+        ],
+        "confidence": 0.859,
+        "center": [
+          146,
+          650
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          221,
+          405,
+          345,
+          857
+        ],
+        "confidence": 0.826,
+        "center": [
+          283,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          390,
+          810,
+          874
+        ],
+        "confidence": 0.85,
+        "center": [
+          740,
+          632
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:07.675545",
+    "camera_id": "CAM-01",
+    "frame_number": 15,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          48,
+          398,
+          243,
+          901
+        ],
+        "confidence": 0.859,
+        "center": [
+          145,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          220,
+          405,
+          344,
+          857
+        ],
+        "confidence": 0.826,
+        "center": [
+          282,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          391,
+          810,
+          875
+        ],
+        "confidence": 0.85,
+        "center": [
+          740,
+          633
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:07.824364",
+    "camera_id": "CAM-01",
+    "frame_number": 16,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          47,
+          397,
+          242,
+          901
+        ],
+        "confidence": 0.861,
+        "center": [
+          144,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          220,
+          404,
+          344,
+          856
+        ],
+        "confidence": 0.832,
+        "center": [
+          282,
+          630
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          392,
+          809,
+          876
+        ],
+        "confidence": 0.854,
+        "center": [
+          739,
+          634
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:07.961773",
+    "camera_id": "CAM-01",
+    "frame_number": 17,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          46,
+          397,
+          242,
+          901
+        ],
+        "confidence": 0.862,
+        "center": [
+          144,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          220,
+          404,
+          344,
+          856
+        ],
+        "confidence": 0.832,
+        "center": [
+          282,
+          630
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          393,
+          809,
+          877
+        ],
+        "confidence": 0.854,
+        "center": [
+          739,
+          635
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:08.092348",
+    "camera_id": "CAM-01",
+    "frame_number": 18,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          46,
+          397,
+          242,
+          901
+        ],
+        "confidence": 0.862,
+        "center": [
+          144,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          220,
+          404,
+          344,
+          856
+        ],
+        "confidence": 0.831,
+        "center": [
+          282,
+          630
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          669,
+          393,
+          809,
+          877
+        ],
+        "confidence": 0.854,
+        "center": [
+          739,
+          635
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:08.219563",
+    "camera_id": "CAM-01",
+    "frame_number": 19,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          46,
+          397,
+          242,
+          901
+        ],
+        "confidence": 0.871,
+        "center": [
+          144,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          220,
+          404,
+          344,
+          856
+        ],
+        "confidence": 0.825,
+        "center": [
+          282,
+          630
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          394,
+          809,
+          876
+        ],
+        "confidence": 0.84,
+        "center": [
+          739,
+          635
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:08.344729",
+    "camera_id": "CAM-01",
+    "frame_number": 20,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          46,
+          397,
+          242,
+          902
+        ],
+        "confidence": 0.871,
+        "center": [
+          144,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          220,
+          404,
+          343,
+          856
+        ],
+        "confidence": 0.825,
+        "center": [
+          281,
+          630
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          670,
+          393,
+          809,
+          876
+        ],
+        "confidence": 0.838,
+        "center": [
+          739,
+          634
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:08.496584",
+    "camera_id": "CAM-01",
+    "frame_number": 21,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          45,
+          396,
+          241,
+          902
+        ],
+        "confidence": 0.865,
+        "center": [
+          143,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          219,
+          405,
+          342,
+          856
+        ],
+        "confidence": 0.83,
+        "center": [
+          280,
+          630
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          668,
+          381,
+          810,
+          874
+        ],
+        "confidence": 0.816,
+        "center": [
+          739,
+          627
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:08.622430",
+    "camera_id": "CAM-01",
+    "frame_number": 22,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          45,
+          397,
+          241,
+          902
+        ],
+        "confidence": 0.874,
+        "center": [
+          143,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          219,
+          405,
+          342,
+          857
+        ],
+        "confidence": 0.842,
+        "center": [
+          280,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          667,
+          380,
+          810,
+          874
+        ],
+        "confidence": 0.836,
+        "center": [
+          738,
+          627
+        ],
+        "zone_id": "CHECKOUT-01"
+      },
+      {
+        "track_id": "TRACK-004",
+        "bbox": [
+          0,
+          553,
+          61,
+          874
+        ],
+        "confidence": 0.402,
+        "center": [
+          30,
+          713
+        ],
+        "zone_id": "ENTRANCE"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 2,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:08.749801",
+    "camera_id": "CAM-01",
+    "frame_number": 23,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          45,
+          397,
+          241,
+          902
+        ],
+        "confidence": 0.874,
+        "center": [
+          143,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          219,
+          405,
+          342,
+          857
+        ],
+        "confidence": 0.841,
+        "center": [
+          280,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          667,
+          379,
+          810,
+          874
+        ],
+        "confidence": 0.834,
+        "center": [
+          738,
+          626
+        ],
+        "zone_id": "CHECKOUT-01"
+      },
+      {
+        "track_id": "TRACK-004",
+        "bbox": [
+          0,
+          553,
+          61,
+          874
+        ],
+        "confidence": 0.404,
+        "center": [
+          30,
+          713
+        ],
+        "zone_id": "ENTRANCE"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 2,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:08.903167",
+    "camera_id": "CAM-01",
+    "frame_number": 24,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          45,
+          397,
+          241,
+          902
+        ],
+        "confidence": 0.874,
+        "center": [
+          143,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          219,
+          405,
+          342,
+          857
+        ],
+        "confidence": 0.841,
+        "center": [
+          280,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          667,
+          379,
+          810,
+          874
+        ],
+        "confidence": 0.832,
+        "center": [
+          738,
+          626
+        ],
+        "zone_id": "CHECKOUT-01"
+      },
+      {
+        "track_id": "TRACK-004",
+        "bbox": [
+          0,
+          553,
+          61,
+          874
+        ],
+        "confidence": 0.402,
+        "center": [
+          30,
+          713
+        ],
+        "zone_id": "ENTRANCE"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 2,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:09.040758",
+    "camera_id": "CAM-01",
+    "frame_number": 25,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          45,
+          397,
+          241,
+          902
+        ],
+        "confidence": 0.874,
+        "center": [
+          143,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          219,
+          405,
+          342,
+          857
+        ],
+        "confidence": 0.841,
+        "center": [
+          280,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          667,
+          378,
+          810,
+          873
+        ],
+        "confidence": 0.832,
+        "center": [
+          738,
+          625
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:09.218811",
+    "camera_id": "CAM-01",
+    "frame_number": 26,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          45,
+          397,
+          241,
+          902
+        ],
+        "confidence": 0.874,
+        "center": [
+          143,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          219,
+          405,
+          342,
+          857
+        ],
+        "confidence": 0.841,
+        "center": [
+          280,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          667,
+          378,
+          810,
+          873
+        ],
+        "confidence": 0.833,
+        "center": [
+          738,
+          625
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:09.459175",
+    "camera_id": "CAM-01",
+    "frame_number": 27,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          45,
+          397,
+          241,
+          902
+        ],
+        "confidence": 0.874,
+        "center": [
+          143,
+          649
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          219,
+          405,
+          342,
+          857
+        ],
+        "confidence": 0.842,
+        "center": [
+          280,
+          631
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          667,
+          378,
+          810,
+          873
+        ],
+        "confidence": 0.833,
+        "center": [
+          738,
+          625
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:09.632048",
+    "camera_id": "CAM-01",
+    "frame_number": 28,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          45,
+          398,
+          241,
+          902
+        ],
+        "confidence": 0.884,
+        "center": [
+          143,
+          650
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          220,
+          407,
+          342,
+          858
+        ],
+        "confidence": 0.839,
+        "center": [
+          281,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          668,
+          381,
+          810,
+          874
+        ],
+        "confidence": 0.822,
+        "center": [
+          739,
+          627
+        ],
+        "zone_id": "CHECKOUT-01"
+      },
+      {
+        "track_id": "TRACK-004",
+        "bbox": [
+          0,
+          555,
+          61,
+          875
+        ],
+        "confidence": 0.402,
+        "center": [
+          30,
+          715
+        ],
+        "zone_id": "ENTRANCE"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 2,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:09.774250",
+    "camera_id": "CAM-01",
+    "frame_number": 29,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          46,
+          399,
+          242,
+          903
+        ],
+        "confidence": 0.88,
+        "center": [
+          144,
+          651
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          220,
+          407,
+          343,
+          858
+        ],
+        "confidence": 0.836,
+        "center": [
+          281,
+          632
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          669,
+          391,
+          809,
+          878
+        ],
+        "confidence": 0.848,
+        "center": [
+          739,
+          634
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  },
+  {
+    "timestamp": "2026-09-25T07:26:09.919328",
+    "camera_id": "CAM-01",
+    "frame_number": 30,
+    "tracks": [
+      {
+        "track_id": "TRACK-001",
+        "bbox": [
+          47,
+          399,
+          242,
+          903
+        ],
+        "confidence": 0.88,
+        "center": [
+          144,
+          651
+        ],
+        "zone_id": "ENTRANCE"
+      },
+      {
+        "track_id": "TRACK-002",
+        "bbox": [
+          221,
+          407,
+          343,
+          859
+        ],
+        "confidence": 0.836,
+        "center": [
+          282,
+          633
+        ],
+        "zone_id": "AISLE-A"
+      },
+      {
+        "track_id": "TRACK-003",
+        "bbox": [
+          669,
+          395,
+          808,
+          879
+        ],
+        "confidence": 0.848,
+        "center": [
+          738,
+          637
+        ],
+        "zone_id": "CHECKOUT-01"
+      }
+    ],
+    "zone_counts": {
+      "ENTRANCE": 1,
+      "AISLE-A": 1,
+      "CHECKOUT-01": 1,
+      "RESTRICTED": 0
+    }
+  }
+]
