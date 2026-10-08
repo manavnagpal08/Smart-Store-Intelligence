@@ -1,11 +1,23 @@
 import axios from 'axios';
 import { StoreEvent, Camera, Zone, SystemHealth, EventStatus } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const DEFAULT_CLOUD_API = 'https://smart-store-intelligence.onrender.com/api';
+
+const getBaseUrl = (): string => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+    return DEFAULT_CLOUD_API;
+  }
+  return '/api';
+};
+
+const API_BASE_URL = getBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 8000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
