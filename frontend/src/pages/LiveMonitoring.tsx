@@ -97,6 +97,7 @@ export const LiveMonitoring: React.FC = () => {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const lastThreatBeepTimeRef = useRef<number>(0);
   const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
+  const smoothedBboxRef = useRef<number[] | null>(null);
 
   useEffect(() => {
     const updateTime = () => {
@@ -229,6 +230,7 @@ export const LiveMonitoring: React.FC = () => {
     setActiveAbnormalAlert(null);
     trackTrailsRef.current = {};
     prevFramePixelsRef.current = null;
+    smoothedBboxRef.current = null;
   };
 
   const startWebcamAnalysisLoop = () => {
@@ -352,69 +354,124 @@ export const LiveMonitoring: React.FC = () => {
             const currData = currentFrame.data;
             const prevData = prevFramePixelsRef.current;
 
-            if (prevData && prevData.length === currData.length) {
-              let minX = targetW, minY = targetH, maxX = 0, maxY = 0;
-              let changedPixels = 0;
-              const step = 4; // Sample every 4th pixel for 60fps performance
+            let skinPixels = 0;
+            let changedPixels = 0;
+            let minSkinX = targetW, minSkinY = targetH, maxSkinX = 0, maxSkinY = 0;
+            let minDiffX = targetW, minDiffY = targetH, maxDiffX = 0, maxDiffY = 0;
+            let skinCenterXSum = 0;
+            let skinCenterYSum = 0;
+            const step = 4; // Sample every 4th pixel for 60fps performance
 
-              for (let y = 0; y < targetH; y += step) {
-                for (let x = 0; x < targetW; x += step) {
-                  const idx = (y * targetW + x) * 4;
-                  const rDiff = Math.abs(currData[idx] - prevData[idx]);
-                  const gDiff = Math.abs(currData[idx + 1] - prevData[idx + 1]);
-                  const bDiff = Math.abs(currData[idx + 2] - prevData[idx + 2]);
-                  const diff = (rDiff + gDiff + bDiff) / 3;
+            for (let y = 0; y < targetH; y += step) {
+              for (let x = 0; x < targetW; x += step) {
+                const idx = (y * targetW + x) * 4;
+                const r = currData[idx];
+                const g = currData[idx + 1];
+                const b = currData[idx + 2];
 
-                  // Pixel movement delta threshold
-                  if (diff > 28) {
+                // Human skin chromaticity rules (covers light, medium, tan, and dark skin tones)
+                const maxVal = Math.max(r, Math.max(g, b));
+                const minVal = Math.min(r, Math.min(g, b));
+                const isSkin =
+                  r > 55 &&
+                  g > 35 &&
+                  b > 20 &&
+                  r > g &&
+                  r > b &&
+                  (r - g) >= 8 &&
+                  (maxVal - minVal) >= 12;
+
+                if (isSkin) {
+                  skinPixels++;
+                  skinCenterXSum += x;
+                  skinCenterYSum += y;
+                  if (x < minSkinX) minSkinX = x;
+                  if (x > maxSkinX) maxSkinX = x;
+                  if (y < minSkinY) minSkinY = y;
+                  if (y > maxSkinY) maxSkinY = y;
+                }
+
+                // Temporal frame difference check
+                if (prevData && prevData.length === currData.length) {
+                  const diff = (Math.abs(r - prevData[idx]) + Math.abs(g - prevData[idx + 1]) + Math.abs(b - prevData[idx + 2])) / 3;
+                  if (diff > 22) {
                     changedPixels++;
-                    if (x < minX) minX = x;
-                    if (x > maxX) maxX = x;
-                    if (y < minY) minY = y;
-                    if (y > maxY) maxY = y;
+                    if (x < minDiffX) minDiffX = x;
+                    if (x > maxDiffX) maxDiffX = x;
+                    if (y < minDiffY) minDiffY = y;
+                    if (y > maxDiffY) maxDiffY = y;
                   }
                 }
               }
+            }
 
-              const totalSampled = (targetW / step) * (targetH / step);
-              const changeRatio = changedPixels / totalSampled;
-              const boxW = maxX - minX;
-              const boxH = maxY - minY;
+            const totalSampled = (targetW / step) * (targetH / step);
+            const skinRatio = skinPixels / totalSampled;
+            const changeRatio = changedPixels / totalSampled;
 
-              // Only detect as person when real physical human motion is detected (not static scene or whole lighting change)
-              if (changeRatio > 0.012 && changeRatio < 0.80 && boxW > 35 && boxH > 45) {
-                const paddingX = Math.round(boxW * 0.12);
-                const paddingY = Math.round(boxH * 0.12);
-                const smoothMinX = Math.max(0, minX - paddingX);
-                const smoothMinY = Math.max(0, minY - paddingY);
-                const smoothMaxX = Math.min(targetW, maxX + paddingX);
-                const smoothMaxY = Math.min(targetH, maxY + paddingY);
-                const cx = Math.round((smoothMinX + smoothMaxX) / 2);
-                const cy = Math.round((smoothMinY + smoothMaxY) / 2);
+            const faceW = maxSkinX > minSkinX ? maxSkinX - minSkinX : 0;
+            const faceH = maxSkinY > minSkinY ? maxSkinY - minSkinY : 0;
+            const hasSkinCluster = skinRatio >= 0.005 && faceW >= 20 && faceH >= 20;
+            const hasMotionCluster = changeRatio >= 0.012 && (maxDiffX - minDiffX) >= 30;
 
-                const dynamicConf = Math.min(0.96, Math.max(0.70, 0.74 + changeRatio * 0.4));
+            if (hasSkinCluster || hasMotionCluster) {
+              let rawMinX = 0, rawMinY = 0, rawMaxX = 0, rawMaxY = 0;
 
-                realTracks = [{
-                  track_id: 'TRACK-001',
-                  bbox: [smoothMinX, smoothMinY, smoothMaxX, smoothMaxY],
-                  confidence: parseFloat(dynamicConf.toFixed(2)),
-                  center: [cx, cy],
-                  zone_id: cx < targetW * 0.4 ? 'ENTRANCE' : cx > targetW * 0.6 ? 'CHECKOUT-01' : 'AISLE-A',
-                }];
-
-                const now = Date.now();
-                if (!trackTrailsRef.current['TRACK-001']) {
-                  trackTrailsRef.current['TRACK-001'] = [];
-                }
-                trackTrailsRef.current['TRACK-001'].push({ x: cx, y: cy, time: now });
-                if (trackTrailsRef.current['TRACK-001'].length > 25) {
-                  trackTrailsRef.current['TRACK-001'].shift();
-                }
+              if (hasSkinCluster) {
+                const faceCenterX = skinCenterXSum / skinPixels;
+                const torsoW = Math.min(targetW * 0.85, Math.max(faceW * 2.2, targetW * 0.42));
+                rawMinX = Math.max(0, Math.round(faceCenterX - torsoW / 2));
+                rawMaxX = Math.min(targetW, Math.round(faceCenterX + torsoW / 2));
+                rawMinY = Math.max(0, Math.round(minSkinY - faceH * 0.25));
+                rawMaxY = Math.min(targetH, Math.round(minSkinY + faceH * 3.4));
               } else {
-                // Completely still / no human motion -> 0 persons detected
-                realTracks = [];
-                trackTrailsRef.current = {};
+                const boxW = maxDiffX - minDiffX;
+                const boxH = maxDiffY - minDiffY;
+                rawMinX = Math.max(0, Math.round(minDiffX - boxW * 0.1));
+                rawMaxX = Math.min(targetW, Math.round(maxDiffX + boxW * 0.1));
+                rawMinY = Math.max(0, Math.round(minDiffY - boxH * 0.1));
+                rawMaxY = Math.min(targetH, Math.round(maxDiffY + boxH * 0.1));
               }
+
+              // Kalman / Exponential Moving Average Smoothing to eliminate jitter
+              if (!smoothedBboxRef.current) {
+                smoothedBboxRef.current = [rawMinX, rawMinY, rawMaxX, rawMaxY];
+              } else {
+                const prevB = smoothedBboxRef.current;
+                smoothedBboxRef.current = [
+                  Math.round(prevB[0] * 0.75 + rawMinX * 0.25),
+                  Math.round(prevB[1] * 0.75 + rawMinY * 0.25),
+                  Math.round(prevB[2] * 0.75 + rawMaxX * 0.25),
+                  Math.round(prevB[3] * 0.75 + rawMaxY * 0.25),
+                ];
+              }
+
+              const sB = smoothedBboxRef.current;
+              const cx = Math.round((sB[0] + sB[2]) / 2);
+              const cy = Math.round((sB[1] + sB[3]) / 2);
+              const dynamicConf = parseFloat(Math.min(0.96, Math.max(0.85, 0.88 + skinRatio * 3 + changeRatio)).toFixed(2));
+
+              realTracks = [{
+                track_id: 'TRACK-001',
+                bbox: [sB[0], sB[1], sB[2], sB[3]],
+                confidence: dynamicConf,
+                center: [cx, cy],
+                zone_id: cx < targetW * 0.38 ? 'ENTRANCE' : cx > targetW * 0.62 ? 'CHECKOUT-01' : 'AISLE-A',
+              }];
+
+              const now = Date.now();
+              if (!trackTrailsRef.current['TRACK-001']) {
+                trackTrailsRef.current['TRACK-001'] = [];
+              }
+              trackTrailsRef.current['TRACK-001'].push({ x: cx, y: cy, time: now });
+              if (trackTrailsRef.current['TRACK-001'].length > 25) {
+                trackTrailsRef.current['TRACK-001'].shift();
+              }
+            } else {
+              // Decay smoothed box if absent
+              smoothedBboxRef.current = null;
+              realTracks = [];
+              trackTrailsRef.current = {};
             }
 
             prevFramePixelsRef.current = new Uint8ClampedArray(currData);
