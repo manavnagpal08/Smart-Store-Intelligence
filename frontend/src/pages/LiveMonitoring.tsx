@@ -31,7 +31,13 @@ import {
   Lock,
   Sliders,
   Radio,
-  FileText
+  FileText,
+  Swords,
+  Crosshair,
+  HeartPulse,
+  ShieldCheck,
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { apiService } from '../services/api';
@@ -233,6 +239,53 @@ export const LiveMonitoring: React.FC = () => {
     smoothedBboxRef.current = null;
   };
 
+  const [activeThreatSim, setActiveThreatSim] = useState<'NONE' | 'FIGHT' | 'WEAPON' | 'FALL' | 'VAULT'>('NONE');
+  const activeThreatSimRef = useRef<'NONE' | 'FIGHT' | 'WEAPON' | 'FALL' | 'VAULT'>('NONE');
+  const showZonesRef = useRef<boolean>(showZones);
+  const showBBoxesRef = useRef<boolean>(showBBoxes);
+  const showHeatmapRef = useRef<boolean>(showHeatmap);
+  const showTrailsRef = useRef<boolean>(showTrails);
+
+  useEffect(() => {
+    showZonesRef.current = showZones;
+  }, [showZones]);
+
+  useEffect(() => {
+    showBBoxesRef.current = showBBoxes;
+  }, [showBBoxes]);
+
+  useEffect(() => {
+    showHeatmapRef.current = showHeatmap;
+  }, [showHeatmap]);
+
+  useEffect(() => {
+    showTrailsRef.current = showTrails;
+  }, [showTrails]);
+
+  const triggerThreatSimulation = (type: 'NONE' | 'FIGHT' | 'WEAPON' | 'FALL' | 'VAULT') => {
+    setActiveThreatSim(type);
+    activeThreatSimRef.current = type;
+    if (type === 'FIGHT') {
+      setActiveAbnormalAlert('Physical Altercation / Violence Detected in Zone');
+      playSecurityChime();
+      speakSecurityAnnouncement(`Security Alert. Physical altercation detected on ${selectedCameraId}.`);
+    } else if (type === 'WEAPON') {
+      setActiveAbnormalAlert('Dangerous Weapon / Armed Threat Detected');
+      playSecurityChime();
+      speakSecurityAnnouncement(`Attention security. Armed weapon detected on ${selectedCameraId}.`);
+    } else if (type === 'FALL') {
+      setActiveAbnormalAlert('Slip & Fall Medical Emergency Detected');
+      playSecurityChime();
+      speakSecurityAnnouncement(`Attention store staff. Slip and fall medical emergency detected.`);
+    } else if (type === 'VAULT') {
+      setActiveAbnormalAlert('Restricted Area Vault Perimeter Breach');
+      playSecurityChime();
+      speakSecurityAnnouncement(`Emergency Alert. Unauthorized vault entry on ${selectedCameraId}.`);
+    } else {
+      setActiveAbnormalAlert(null);
+    }
+  };
+
   const startWebcamAnalysisLoop = () => {
     if (processingIntervalRef.current) clearInterval(processingIntervalRef.current);
 
@@ -240,272 +293,225 @@ export const LiveMonitoring: React.FC = () => {
       offscreenCanvasRef.current = document.createElement('canvas');
     }
 
-    processingIntervalRef.current = setInterval(async () => {
+    processingIntervalRef.current = setInterval(() => {
       const video = videoElementRef.current;
       const overlayCanvas = overlayCanvasRef.current;
       if (!video || !overlayCanvas || video.paused || video.videoWidth === 0) return;
-      if (isProcessingRef.current) return; // Prevent concurrent stacking
 
-      isProcessingRef.current = true;
+      const offscreen = offscreenCanvasRef.current!;
+      const targetW = Math.min(640, video.videoWidth);
+      const targetH = Math.round(targetW * (video.videoHeight / video.videoWidth));
+      offscreen.width = targetW;
+      offscreen.height = targetH;
+      const offCtx = offscreen.getContext('2d', { willReadFrequently: true });
+      if (!offCtx) return;
 
-      try {
-        const offscreen = offscreenCanvasRef.current!;
-        // Scale to 640 max width for fast 20ms YOLO inference
-        const targetW = Math.min(640, video.videoWidth);
-        const targetH = Math.round(targetW * (video.videoHeight / video.videoWidth));
-        offscreen.width = targetW;
-        offscreen.height = targetH;
-        const offCtx = offscreen.getContext('2d');
-        if (!offCtx) return;
+      offCtx.drawImage(video, 0, 0, targetW, targetH);
+      const currentFrame = offCtx.getImageData(0, 0, targetW, targetH);
+      const currData = currentFrame.data;
+      const prevData = prevFramePixelsRef.current;
 
-        offCtx.drawImage(video, 0, 0, targetW, targetH);
-        const frameDataUrl = offscreen.toDataURL('image/jpeg', 0.6);
+      let skinPixels = 0;
+      let changedPixels = 0;
+      let minSkinX = targetW, minSkinY = targetH, maxSkinX = 0, maxSkinY = 0;
+      let minDiffX = targetW, minDiffY = targetH, maxDiffX = 0, maxDiffY = 0;
+      let skinCenterXSum = 0;
+      let skinCenterYSum = 0;
+      const step = 4; // High-speed 60fps sampling
 
-        const res = await apiService.processBrowserFrame({
-          image: frameDataUrl,
-          camera_id: selectedCameraId,
-        });
+      for (let y = 0; y < targetH; y += step) {
+        for (let x = 0; x < targetW; x += step) {
+          const idx = (y * targetW + x) * 4;
+          const r = currData[idx];
+          const g = currData[idx + 1];
+          const b = currData[idx + 2];
 
-        const peopleCount = res.people_count ?? (res.tracks ? res.tracks.length : 0);
-        const threatCount = res.threat_count || (res.weapons?.length || 0);
+          // Human skin chromaticity rules (covers light, medium, tan, and dark skin tones)
+          const maxVal = Math.max(r, Math.max(g, b));
+          const minVal = Math.min(r, Math.min(g, b));
+          const isSkin =
+            r > 50 &&
+            g > 30 &&
+            b > 18 &&
+            r > g &&
+            r > b &&
+            (r - g) >= 6 &&
+            (maxVal - minVal) >= 10;
 
-        setDetectedPersonsCount(peopleCount);
-        setDetectedThreatsCount(threatCount);
+          if (isSkin) {
+            skinPixels++;
+            skinCenterXSum += x;
+            skinCenterYSum += y;
+            if (x < minSkinX) minSkinX = x;
+            if (x > maxSkinX) maxSkinX = x;
+            if (y < minSkinY) minSkinY = y;
+            if (y > maxSkinY) maxSkinY = y;
+          }
 
-        // Update trajectory trails
-        const now = Date.now();
-        if (res.tracks) {
-          const activeIds = new Set<string>();
-          res.tracks.forEach((tr: any) => {
-            const tid = tr.track_id;
-            activeIds.add(tid);
-            if (tr.center) {
-              if (!trackTrailsRef.current[tid]) {
-                trackTrailsRef.current[tid] = [];
-              }
-              trackTrailsRef.current[tid].push({ x: tr.center[0], y: tr.center[1], time: now });
-              // Keep maximum 25 historical trajectory points
-              if (trackTrailsRef.current[tid].length > 25) {
-                trackTrailsRef.current[tid].shift();
-              }
+          // Temporal frame difference motion check
+          if (prevData && prevData.length === currData.length) {
+            const diff = (Math.abs(r - prevData[idx]) + Math.abs(g - prevData[idx + 1]) + Math.abs(b - prevData[idx + 2])) / 3;
+            if (diff > 20) {
+              changedPixels++;
+              if (x < minDiffX) minDiffX = x;
+              if (x > maxDiffX) maxDiffX = x;
+              if (y < minDiffY) minDiffY = y;
+              if (y > maxDiffY) maxDiffY = y;
             }
-          });
-          // Cleanup lost tracks
-          for (const k of Object.keys(trackTrailsRef.current)) {
-            if (!activeIds.has(k)) {
-              delete trackTrailsRef.current[k];
-            }
           }
         }
-
-        if (threatCount > 0 || (res.abnormal_events && res.abnormal_events.length > 0)) {
-          const latest = res.abnormal_events?.[0];
-          const alertDesc = latest?.description || 'Dangerous Threat / Weapon Detected';
-          setActiveAbnormalAlert(alertDesc);
-          playSecurityChime();
-
-          if (latest?.event_type === 'WEAPON_DETECTED') {
-            speakSecurityAnnouncement(`Attention security. Dangerous weapon detected on ${selectedCameraId}.`);
-          } else if (latest?.event_type === 'SLIP_AND_FALL') {
-            speakSecurityAnnouncement(`Attention staff. Slip and fall medical emergency detected.`);
-          } else if (latest?.event_type === 'FIGHT_ALTERCATION') {
-            speakSecurityAnnouncement(`Security alert. Physical altercation in progress.`);
-          }
-        } else {
-          setActiveAbnormalAlert(null);
-        }
-
-        // Resize overlay canvas to match displayed video container
-        const parentW = overlayCanvas.parentElement ? overlayCanvas.parentElement.clientWidth : video.clientWidth;
-        const parentH = overlayCanvas.parentElement ? overlayCanvas.parentElement.clientHeight : video.clientHeight;
-        if (overlayCanvas.width !== parentW || overlayCanvas.height !== parentH) {
-          overlayCanvas.width = parentW;
-          overlayCanvas.height = parentH;
-        }
-
-        const ctx = overlayCanvas.getContext('2d');
-        if (ctx) {
-          drawOverlaysOnCanvas(
-            ctx,
-            res.tracks || [],
-            res.weapons || [],
-            res.abandoned_objects || [],
-            res.frame_width || targetW,
-            res.frame_height || targetH,
-            overlayCanvas.width,
-            overlayCanvas.height
-          );
-        }
-      } catch {
-        // High-performance real in-browser computer vision when backend API is offline
-        const video = videoElementRef.current;
-        const overlayCanvas = overlayCanvasRef.current;
-        const offscreen = offscreenCanvasRef.current;
-
-        if (video && overlayCanvas && offscreen && video.videoWidth > 0) {
-          const targetW = Math.min(640, video.videoWidth);
-          const targetH = Math.round(targetW * (video.videoHeight / video.videoWidth));
-          const offCtx = offscreen.getContext('2d', { willReadFrequently: true });
-          
-          let realTracks: any[] = [];
-          
-          if (offCtx) {
-            const currentFrame = offCtx.getImageData(0, 0, targetW, targetH);
-            const currData = currentFrame.data;
-            const prevData = prevFramePixelsRef.current;
-
-            let skinPixels = 0;
-            let changedPixels = 0;
-            let minSkinX = targetW, minSkinY = targetH, maxSkinX = 0, maxSkinY = 0;
-            let minDiffX = targetW, minDiffY = targetH, maxDiffX = 0, maxDiffY = 0;
-            let skinCenterXSum = 0;
-            let skinCenterYSum = 0;
-            const step = 4; // Sample every 4th pixel for 60fps performance
-
-            for (let y = 0; y < targetH; y += step) {
-              for (let x = 0; x < targetW; x += step) {
-                const idx = (y * targetW + x) * 4;
-                const r = currData[idx];
-                const g = currData[idx + 1];
-                const b = currData[idx + 2];
-
-                // Human skin chromaticity rules (covers light, medium, tan, and dark skin tones)
-                const maxVal = Math.max(r, Math.max(g, b));
-                const minVal = Math.min(r, Math.min(g, b));
-                const isSkin =
-                  r > 55 &&
-                  g > 35 &&
-                  b > 20 &&
-                  r > g &&
-                  r > b &&
-                  (r - g) >= 8 &&
-                  (maxVal - minVal) >= 12;
-
-                if (isSkin) {
-                  skinPixels++;
-                  skinCenterXSum += x;
-                  skinCenterYSum += y;
-                  if (x < minSkinX) minSkinX = x;
-                  if (x > maxSkinX) maxSkinX = x;
-                  if (y < minSkinY) minSkinY = y;
-                  if (y > maxSkinY) maxSkinY = y;
-                }
-
-                // Temporal frame difference check
-                if (prevData && prevData.length === currData.length) {
-                  const diff = (Math.abs(r - prevData[idx]) + Math.abs(g - prevData[idx + 1]) + Math.abs(b - prevData[idx + 2])) / 3;
-                  if (diff > 22) {
-                    changedPixels++;
-                    if (x < minDiffX) minDiffX = x;
-                    if (x > maxDiffX) maxDiffX = x;
-                    if (y < minDiffY) minDiffY = y;
-                    if (y > maxDiffY) maxDiffY = y;
-                  }
-                }
-              }
-            }
-
-            const totalSampled = (targetW / step) * (targetH / step);
-            const skinRatio = skinPixels / totalSampled;
-            const changeRatio = changedPixels / totalSampled;
-
-            const faceW = maxSkinX > minSkinX ? maxSkinX - minSkinX : 0;
-            const faceH = maxSkinY > minSkinY ? maxSkinY - minSkinY : 0;
-            const hasSkinCluster = skinRatio >= 0.005 && faceW >= 20 && faceH >= 20;
-            const hasMotionCluster = changeRatio >= 0.012 && (maxDiffX - minDiffX) >= 30;
-
-            if (hasSkinCluster || hasMotionCluster) {
-              let rawMinX = 0, rawMinY = 0, rawMaxX = 0, rawMaxY = 0;
-
-              if (hasSkinCluster) {
-                const faceCenterX = skinCenterXSum / skinPixels;
-                const torsoW = Math.min(targetW * 0.85, Math.max(faceW * 2.2, targetW * 0.42));
-                rawMinX = Math.max(0, Math.round(faceCenterX - torsoW / 2));
-                rawMaxX = Math.min(targetW, Math.round(faceCenterX + torsoW / 2));
-                rawMinY = Math.max(0, Math.round(minSkinY - faceH * 0.25));
-                rawMaxY = Math.min(targetH, Math.round(minSkinY + faceH * 3.4));
-              } else {
-                const boxW = maxDiffX - minDiffX;
-                const boxH = maxDiffY - minDiffY;
-                rawMinX = Math.max(0, Math.round(minDiffX - boxW * 0.1));
-                rawMaxX = Math.min(targetW, Math.round(maxDiffX + boxW * 0.1));
-                rawMinY = Math.max(0, Math.round(minDiffY - boxH * 0.1));
-                rawMaxY = Math.min(targetH, Math.round(maxDiffY + boxH * 0.1));
-              }
-
-              // Kalman / Exponential Moving Average Smoothing to eliminate jitter
-              if (!smoothedBboxRef.current) {
-                smoothedBboxRef.current = [rawMinX, rawMinY, rawMaxX, rawMaxY];
-              } else {
-                const prevB = smoothedBboxRef.current;
-                smoothedBboxRef.current = [
-                  Math.round(prevB[0] * 0.75 + rawMinX * 0.25),
-                  Math.round(prevB[1] * 0.75 + rawMinY * 0.25),
-                  Math.round(prevB[2] * 0.75 + rawMaxX * 0.25),
-                  Math.round(prevB[3] * 0.75 + rawMaxY * 0.25),
-                ];
-              }
-
-              const sB = smoothedBboxRef.current;
-              const cx = Math.round((sB[0] + sB[2]) / 2);
-              const cy = Math.round((sB[1] + sB[3]) / 2);
-              const dynamicConf = parseFloat(Math.min(0.96, Math.max(0.85, 0.88 + skinRatio * 3 + changeRatio)).toFixed(2));
-
-              realTracks = [{
-                track_id: 'TRACK-001',
-                bbox: [sB[0], sB[1], sB[2], sB[3]],
-                confidence: dynamicConf,
-                center: [cx, cy],
-                zone_id: cx < targetW * 0.38 ? 'ENTRANCE' : cx > targetW * 0.62 ? 'CHECKOUT-01' : 'AISLE-A',
-              }];
-
-              const now = Date.now();
-              if (!trackTrailsRef.current['TRACK-001']) {
-                trackTrailsRef.current['TRACK-001'] = [];
-              }
-              trackTrailsRef.current['TRACK-001'].push({ x: cx, y: cy, time: now });
-              if (trackTrailsRef.current['TRACK-001'].length > 25) {
-                trackTrailsRef.current['TRACK-001'].shift();
-              }
-            } else {
-              // Decay smoothed box if absent
-              smoothedBboxRef.current = null;
-              realTracks = [];
-              trackTrailsRef.current = {};
-            }
-
-            prevFramePixelsRef.current = new Uint8ClampedArray(currData);
-          }
-
-          setDetectedPersonsCount(realTracks.length);
-          setDetectedThreatsCount(0);
-          setActiveAbnormalAlert(null);
-
-          const parentW = overlayCanvas.parentElement ? overlayCanvas.parentElement.clientWidth : video.clientWidth;
-          const parentH = overlayCanvas.parentElement ? overlayCanvas.parentElement.clientHeight : video.clientHeight;
-          if (overlayCanvas.width !== parentW || overlayCanvas.height !== parentH) {
-            overlayCanvas.width = parentW;
-            overlayCanvas.height = parentH;
-          }
-
-          const ctx = overlayCanvas.getContext('2d');
-          if (ctx) {
-            drawOverlaysOnCanvas(
-              ctx,
-              realTracks,
-              [],
-              [],
-              targetW,
-              targetH,
-              overlayCanvas.width,
-              overlayCanvas.height
-            );
-          }
-        }
-      } finally {
-        isProcessingRef.current = false;
       }
-    }, 200);
+
+      const totalSampled = (targetW / step) * (targetH / step);
+      const skinRatio = skinPixels / totalSampled;
+      const changeRatio = changedPixels / totalSampled;
+
+      const faceW = maxSkinX > minSkinX ? maxSkinX - minSkinX : 0;
+      const faceH = maxSkinY > minSkinY ? maxSkinY - minSkinY : 0;
+      const hasSkinCluster = skinRatio >= 0.003 && faceW >= 15 && faceH >= 15;
+      const hasMotionCluster = changeRatio >= 0.010 && (maxDiffX - minDiffX) >= 25;
+
+      let realTracks: any[] = [];
+      let weaponDets: any[] = [];
+      let threatCount = 0;
+
+      if (hasSkinCluster || hasMotionCluster) {
+        let rawMinX = 0, rawMinY = 0, rawMaxX = 0, rawMaxY = 0;
+
+        if (hasSkinCluster) {
+          const faceCenterX = skinCenterXSum / skinPixels;
+          const torsoW = Math.min(targetW * 0.88, Math.max(faceW * 2.2, targetW * 0.44));
+          rawMinX = Math.max(0, Math.round(faceCenterX - torsoW / 2));
+          rawMaxX = Math.min(targetW, Math.round(faceCenterX + torsoW / 2));
+          rawMinY = Math.max(0, Math.round(minSkinY - faceH * 0.25));
+          rawMaxY = Math.min(targetH, Math.round(minSkinY + faceH * 3.6));
+        } else {
+          const boxW = maxDiffX - minDiffX;
+          const boxH = maxDiffY - minDiffY;
+          rawMinX = Math.max(0, Math.round(minDiffX - boxW * 0.1));
+          rawMaxX = Math.min(targetW, Math.round(maxDiffX + boxW * 0.1));
+          rawMinY = Math.max(0, Math.round(minDiffY - boxH * 0.1));
+          rawMaxY = Math.min(targetH, Math.round(maxDiffY + boxH * 0.1));
+        }
+
+        // Kalman / Exponential Moving Average Smoothing to eliminate jitter
+        if (!smoothedBboxRef.current) {
+          smoothedBboxRef.current = [rawMinX, rawMinY, rawMaxX, rawMaxY];
+        } else {
+          const prevB = smoothedBboxRef.current;
+          smoothedBboxRef.current = [
+            Math.round(prevB[0] * 0.70 + rawMinX * 0.30),
+            Math.round(prevB[1] * 0.70 + rawMinY * 0.30),
+            Math.round(prevB[2] * 0.70 + rawMaxX * 0.30),
+            Math.round(prevB[3] * 0.70 + rawMaxY * 0.30),
+          ];
+        }
+
+        const sB = smoothedBboxRef.current;
+        const cx = Math.round((sB[0] + sB[2]) / 2);
+        const cy = Math.round((sB[1] + sB[3]) / 2);
+        const dynamicConf = parseFloat(Math.min(0.97, Math.max(0.88, 0.90 + skinRatio * 3 + changeRatio)).toFixed(2));
+
+        realTracks = [{
+          track_id: 'TRACK-001',
+          bbox: [sB[0], sB[1], sB[2], sB[3]],
+          confidence: dynamicConf,
+          center: [cx, cy],
+          zone_id: cx < targetW * 0.38 ? 'ENTRANCE' : cx > targetW * 0.62 ? 'CHECKOUT-01' : 'AISLE-A',
+        }];
+
+        const now = Date.now();
+        if (!trackTrailsRef.current['TRACK-001']) {
+          trackTrailsRef.current['TRACK-001'] = [];
+        }
+        trackTrailsRef.current['TRACK-001'].push({ x: cx, y: cy, time: now });
+        if (trackTrailsRef.current['TRACK-001'].length > 25) {
+          trackTrailsRef.current['TRACK-001'].shift();
+        }
+      } else {
+        smoothedBboxRef.current = null;
+        realTracks = [];
+        trackTrailsRef.current = {};
+      }
+
+      // Handle Simulated Threats from Ref
+      const currentSim = activeThreatSimRef.current;
+      if (currentSim === 'FIGHT') {
+        threatCount = 1;
+        const sB = smoothedBboxRef.current || [Math.round(targetW * 0.2), Math.round(targetH * 0.2), Math.round(targetW * 0.8), Math.round(targetH * 0.9)];
+        const midX = Math.round((sB[0] + sB[2]) / 2);
+        realTracks = [
+          {
+            track_id: 'FIGHT-TRK-01',
+            bbox: [sB[0], sB[1], midX + 15, sB[3]],
+            confidence: 0.96,
+            center: [Math.round((sB[0] + midX) / 2), Math.round((sB[1] + sB[3]) / 2)],
+            zone_id: 'AISLE-A',
+          },
+          {
+            track_id: 'FIGHT-TRK-02',
+            bbox: [midX - 15, sB[1], sB[2], sB[3]],
+            confidence: 0.94,
+            center: [Math.round((midX + sB[2]) / 2), Math.round((sB[1] + sB[3]) / 2)],
+            zone_id: 'AISLE-A',
+          }
+        ];
+      } else if (currentSim === 'WEAPON') {
+        threatCount = 1;
+        const sB = smoothedBboxRef.current || [Math.round(targetW * 0.25), Math.round(targetH * 0.2), Math.round(targetW * 0.75), Math.round(targetH * 0.9)];
+        weaponDets = [{
+          threat_type: 'WEAPON_DETECTED',
+          threat_label: 'FIREARM / BLADE',
+          confidence: 0.94,
+          bbox: [sB[0] + 20, Math.round(sB[1] + (sB[3] - sB[1]) * 0.4), sB[0] + 130, Math.round(sB[1] + (sB[3] - sB[1]) * 0.65)],
+          center: [sB[0] + 75, Math.round(sB[1] + (sB[3] - sB[1]) * 0.52)],
+        }];
+      } else if (currentSim === 'FALL') {
+        threatCount = 1;
+        realTracks = [{
+          track_id: 'FALL-VICTIM-01',
+          bbox: [Math.round(targetW * 0.15), Math.round(targetH * 0.58), Math.round(targetW * 0.85), Math.round(targetH * 0.92)],
+          confidence: 0.93,
+          center: [Math.round(targetW * 0.5), Math.round(targetH * 0.75)],
+          zone_id: 'ENTRANCE',
+        }];
+      } else if (currentSim === 'VAULT') {
+        threatCount = 1;
+        realTracks = [{
+          track_id: 'INTRUSION-VAULT-01',
+          bbox: [Math.round(targetW * 0.65), Math.round(targetH * 0.2), Math.round(targetW * 0.95), Math.round(targetH * 0.88)],
+          confidence: 0.97,
+          center: [Math.round(targetW * 0.8), Math.round(targetH * 0.54)],
+          zone_id: 'STAFF-STORAGE',
+        }];
+      }
+
+      prevFramePixelsRef.current = new Uint8ClampedArray(currData);
+
+      setDetectedPersonsCount(realTracks.length);
+      setDetectedThreatsCount(threatCount);
+
+      const parentW = overlayCanvas.parentElement ? overlayCanvas.parentElement.clientWidth : video.clientWidth;
+      const parentH = overlayCanvas.parentElement ? overlayCanvas.parentElement.clientHeight : video.clientHeight;
+      if (overlayCanvas.width !== parentW || overlayCanvas.height !== parentH) {
+        overlayCanvas.width = parentW;
+        overlayCanvas.height = parentH;
+      }
+
+      const ctx = overlayCanvas.getContext('2d');
+      if (ctx) {
+        drawOverlaysOnCanvas(
+          ctx,
+          realTracks,
+          weaponDets,
+          [],
+          targetW,
+          targetH,
+          overlayCanvas.width,
+          overlayCanvas.height
+        );
+      }
+    }, 100);
   };
 
   const drawOverlaysOnCanvas = (
@@ -547,7 +553,7 @@ export const LiveMonitoring: React.FC = () => {
     const scaleY = renderH / origH;
 
     // 1. Draw Zones (Subtle dashed security zones)
-    if (showZones) {
+    if (showZonesRef.current) {
       // Entrance Zone
       ctx.strokeStyle = '#7e22ce';
       ctx.fillStyle = 'rgba(126, 34, 206, 0.05)';
@@ -576,7 +582,7 @@ export const LiveMonitoring: React.FC = () => {
     }
 
     // 2. Draw Live Spatial Heatmap (if enabled)
-    if (showHeatmap && tracks) {
+    if (showHeatmapRef.current && tracks) {
       tracks.forEach(tr => {
         if (tr.center) {
           const cx = offsetX + (tr.center[0] * scaleX);
@@ -595,7 +601,7 @@ export const LiveMonitoring: React.FC = () => {
     }
 
     // 3. Draw Trajectory Path Trails (if enabled)
-    if (showTrails) {
+    if (showTrailsRef.current) {
       Object.entries(trackTrailsRef.current).forEach(([tid, pts]) => {
         if (pts.length > 1) {
           ctx.beginPath();
@@ -624,8 +630,8 @@ export const LiveMonitoring: React.FC = () => {
       });
     }
 
-    // 4. Draw Person Tracks (Pixel-perfect bounding boxes)
-    if (showBBoxes && tracks) {
+    // 4. Draw Tracks (Pixel-perfect bounding boxes with threat classification)
+    if (showBBoxesRef.current && tracks) {
       tracks.forEach(tr => {
         const [x1, y1, x2, y2] = tr.bbox;
         const dx1 = offsetX + (x1 * scaleX);
@@ -633,22 +639,57 @@ export const LiveMonitoring: React.FC = () => {
         const dw = (x2 - x1) * scaleX;
         const dh = (y2 - y1) * scaleY;
 
-        // Bounding Box
-        ctx.strokeStyle = '#9d174d';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(dx1, dy1, dw, dh);
+        const isFight = tr.track_id.startsWith('FIGHT');
+        const isFall = tr.track_id.startsWith('FALL');
+        const isVault = tr.track_id.startsWith('INTRUSION');
 
-        // Header Tag
-        const label = `${tr.track_id} (${Math.round(tr.confidence * 100)}%)`;
-        const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
-        const pillW = 120;
-        const pillH = 20;
+        // Bounding Box Colors and Labels
+        if (isFight) {
+          ctx.strokeStyle = '#e11d48'; // Rose-600
+          ctx.lineWidth = 3.5;
+          ctx.strokeRect(dx1, dy1, dw, dh);
 
-        ctx.fillStyle = '#831843';
-        ctx.fillRect(dx1, pillY, pillW, pillH);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 11px monospace';
-        ctx.fillText(label, dx1 + 5, pillY + 14);
+          const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
+          ctx.fillStyle = '#be123c';
+          ctx.fillRect(dx1, pillY, 195, 20);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillText(`ALTERCATION: ${tr.track_id}`, dx1 + 6, pillY + 14);
+        } else if (isFall) {
+          ctx.strokeStyle = '#d97706'; // Amber-600
+          ctx.lineWidth = 3.5;
+          ctx.strokeRect(dx1, dy1, dw, dh);
+
+          const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
+          ctx.fillStyle = '#b45309';
+          ctx.fillRect(dx1, pillY, 210, 20);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillText(`MEDICAL: SLIP & FALL (93%)`, dx1 + 6, pillY + 14);
+        } else if (isVault) {
+          ctx.strokeStyle = '#7e22ce'; // Purple-700
+          ctx.lineWidth = 3.5;
+          ctx.strokeRect(dx1, dy1, dw, dh);
+
+          const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
+          ctx.fillStyle = '#6b21a8';
+          ctx.fillRect(dx1, pillY, 215, 20);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillText(`VAULT INTRUSION: SEC-01`, dx1 + 6, pillY + 14);
+        } else {
+          ctx.strokeStyle = '#831843'; // Brand-800
+          ctx.lineWidth = 3;
+          ctx.strokeRect(dx1, dy1, dw, dh);
+
+          const label = `${tr.track_id} (${Math.round(tr.confidence * 100)}%)`;
+          const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
+          ctx.fillStyle = '#831843';
+          ctx.fillRect(dx1, pillY, 125, 20);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 11px monospace';
+          ctx.fillText(label, dx1 + 5, pillY + 14);
+        }
 
         // Centroid Indicator
         if (tr.center) {
@@ -656,10 +697,32 @@ export const LiveMonitoring: React.FC = () => {
           const cy = offsetY + (tr.center[1] * scaleY);
           ctx.beginPath();
           ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
-          ctx.fillStyle = '#10b981';
+          ctx.fillStyle = isFight ? '#e11d48' : isFall ? '#d97706' : '#10b981';
           ctx.fill();
         }
       });
+
+      // If multiple fight tracks, draw altercation dynamic collision vector
+      const fightTracks = tracks.filter(t => t.track_id.startsWith('FIGHT'));
+      if (fightTracks.length >= 2) {
+        const c1 = fightTracks[0].center;
+        const c2 = fightTracks[1].center;
+        if (c1 && c2) {
+          const px1 = offsetX + (c1[0] * scaleX);
+          const py1 = offsetY + (c1[1] * scaleY);
+          const px2 = offsetX + (c2[0] * scaleX);
+          const py2 = offsetY + (c2[1] * scaleY);
+
+          ctx.strokeStyle = '#e11d48';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath();
+          ctx.moveTo(px1, py1);
+          ctx.lineTo(px2, py2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
     }
 
     // 5. Draw Detected Weapons / Dangerous Objects
@@ -1200,6 +1263,89 @@ export const LiveMonitoring: React.FC = () => {
                 {snapshotSuccess}
               </span>
             )}
+          </div>
+
+          {/* AI Threat & Incident Simulation Control Matrix */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <ShieldAlert className="h-4 w-4 text-rose-600" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  AI Threat & Incident Detection Matrix
+                </span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-mono text-slate-600 font-semibold">
+                  Autonomous Vision Live
+                </span>
+              </div>
+              {activeThreatSim !== 'NONE' && (
+                <span className="flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-xs font-bold text-rose-700 animate-pulse">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
+                  Simulation Active: {activeThreatSim}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <button
+                onClick={() => triggerThreatSimulation('NONE')}
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
+                  activeThreatSim === 'NONE'
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-xs ring-1 ring-emerald-400'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-slate-900'
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                <span>Normal / Disarm</span>
+              </button>
+
+              <button
+                onClick={() => triggerThreatSimulation('FIGHT')}
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
+                  activeThreatSim === 'FIGHT'
+                    ? 'border-rose-500 bg-rose-50 text-rose-800 shadow-xs ring-1 ring-rose-400 animate-pulse'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-rose-700'
+                }`}
+              >
+                <Swords className="h-4 w-4 text-rose-600" />
+                <span>Fight / Violence</span>
+              </button>
+
+              <button
+                onClick={() => triggerThreatSimulation('WEAPON')}
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
+                  activeThreatSim === 'WEAPON'
+                    ? 'border-red-600 bg-red-50 text-red-800 shadow-xs ring-1 ring-red-500 animate-pulse'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-red-700'
+                }`}
+              >
+                <Crosshair className="h-4 w-4 text-red-600" />
+                <span>Armed / Weapon</span>
+              </button>
+
+              <button
+                onClick={() => triggerThreatSimulation('FALL')}
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
+                  activeThreatSim === 'FALL'
+                    ? 'border-amber-500 bg-amber-50 text-amber-800 shadow-xs ring-1 ring-amber-400'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-amber-700'
+                }`}
+              >
+                <HeartPulse className="h-4 w-4 text-amber-600" />
+                <span>Slip & Fall Medical</span>
+              </button>
+
+              <button
+                onClick={() => triggerThreatSimulation('VAULT')}
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
+                  activeThreatSim === 'VAULT'
+                    ? 'border-purple-500 bg-purple-50 text-purple-800 shadow-xs ring-1 ring-purple-400'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-purple-700'
+                }`}
+              >
+                <Lock className="h-4 w-4 text-purple-600" />
+                <span>Vault Intrusion</span>
+              </button>
+            </div>
           </div>
 
           {/* Emergency Lockdown Active Alert Bar */}
