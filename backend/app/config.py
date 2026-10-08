@@ -24,22 +24,24 @@ class Settings(BaseSettings):
     PORT: int = int(os.getenv("PORT", 8000))
     DEBUG: bool = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
 
-    # CORS (Supports "*", comma-separated string, or JSON array)
-    CORS_ORIGINS: Union[List[str], str] = ["*"]
+    # CORS (Pure str to prevent pydantic-settings decode_complex_value error)
+    CORS_ORIGINS: str = "*"
 
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",") if i.strip()]
-        elif isinstance(v, (list, str)):
-            if isinstance(v, str):
-                try:
-                    return json.loads(v)
-                except Exception:
-                    return [v]
-            return v
-        return ["*"]
+    @property
+    def cors_origins_list(self) -> List[str]:
+        if not self.CORS_ORIGINS:
+            return ["*"]
+        val = str(self.CORS_ORIGINS).strip()
+        if val == "*":
+            return ["*"]
+        if val.startswith("[") and val.endswith("]"):
+            try:
+                parsed = json.loads(val)
+                if isinstance(parsed, list):
+                    return parsed
+            except Exception:
+                pass
+        return [i.strip() for i in val.split(",") if i.strip()]
 
     # Java Module Integration
     JAVA_BIN_DIR: str = os.getenv(
