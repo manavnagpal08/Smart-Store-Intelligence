@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from backend.app.database.session import get_db
 from backend.app.schemas.zone import ZoneResponse, ZoneCreate
 from backend.app.services.zone_service import ZoneService
+from backend.app.security import require_api_key
 
 router = APIRouter(prefix="/zones", tags=["Zones"])
 
@@ -31,6 +32,6 @@ def get_zone(zone_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=ZoneResponse, status_code=201)
-def create_zone(zone: ZoneCreate, db: Session = Depends(get_db)):
+def create_zone(zone: ZoneCreate, db: Session = Depends(get_db), _: None = Depends(require_api_key)):
     """Register or update a store zone."""
     return ZoneService.create_or_update(db, zone)

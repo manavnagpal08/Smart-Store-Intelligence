@@ -1,6 +1,6 @@
 """SQLAlchemy ORM Models for Store Events and Lifecycle History."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Integer, DateTime, Text, JSON, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from backend.app.database.connection import Base
@@ -20,9 +20,11 @@ class EventDB(Base):
     description = Column(Text, nullable=True)
     people_count = Column(Integer, nullable=True)
     details = Column(JSON, nullable=True)
+    snapshot_url = Column(String(255), nullable=True)
+    snapshot_base64 = Column(Text, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     camera = relationship("CameraDB", back_populates="events")
@@ -37,7 +39,7 @@ class EventHistoryDB(Base):
     event_id = Column(String(50), ForeignKey("events.event_id", ondelete="CASCADE"), nullable=False, index=True)
     old_status = Column(String(20), nullable=True)
     new_status = Column(String(20), nullable=False)
-    changed_at = Column(DateTime, default=datetime.utcnow)
+    changed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     changed_by = Column(String(100), default="SYSTEM")
 
     # Relationship

@@ -17,6 +17,8 @@ class EventBase(BaseModel):
     description: Optional[str] = None
     people_count: Optional[int] = None
     details: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    snapshot_url: Optional[str] = None
+    snapshot_base64: Optional[str] = None
     resolved_at: Optional[datetime] = None
 
 

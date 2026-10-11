@@ -1,6 +1,17 @@
 export type EventSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type EventStatus = 'DETECTED' | 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED';
-export type EventType = 'CROWD_DENSITY' | 'QUEUE_CONGESTION' | 'RESTRICTED_AREA_ENTRY' | 'AISLE_OBSTRUCTION';
+export type EventType =
+  | 'CROWD_DENSITY'
+  | 'QUEUE_CONGESTION'
+  | 'RESTRICTED_AREA_ENTRY'
+  | 'RESTRICTED_ENTRY'
+  | 'AISLE_OBSTRUCTION'
+  | 'WEAPON_DETECTED'
+  | 'PHYSICAL_ALTERCATION'
+  | 'THEFT_SUSPICIOUS'
+  | 'SLIP_AND_FALL'
+  | 'UNATTENDED_OBJECT'
+  | 'EVIDENCE_SNAPSHOT';
 
 export interface EventHistoryItem {
   history_id: number;
@@ -22,10 +33,16 @@ export interface StoreEvent {
   status: EventStatus;
   description?: string;
   people_count?: number | null;
+  snapshot_url?: string | null;
+  snapshot_base64?: string | null;
   details?: {
     start_frame?: number;
     last_frame?: number;
     duration_frames?: number;
+    snapshot_url?: string;
+    auto_captured?: boolean;
+    confidence?: number;
+    weapon_type?: string;
     [key: string]: any;
   };
   resolved_at?: string | null;
@@ -65,3 +82,40 @@ export interface ZoneOccupancy {
   people_count: number;
   status: 'Normal' | 'Moderate' | 'High' | 'Restricted Entry' | 'Congested';
 }
+
+export interface GuardUnit {
+  id: string;
+  name: string;
+  badge: string;
+  zone_assigned: string;
+  status: 'PATROL' | 'RESPONDING' | 'STANDBY' | 'BREAK';
+  battery: number;
+  last_ping: string;
+  assigned_incident_id?: string | null;
+  phone: string;
+}
+
+export interface SecurityPolicy {
+  id: string;
+  name: string;
+  zone_id: string;
+  category: 'OCCUPANCY' | 'DWELL_TIME' | 'WEAPONS' | 'VIOLENCE' | 'AFTER_HOURS';
+  threshold_value: number;
+  unit: string;
+  severity: EventSeverity;
+  auto_dispatch_guard: boolean;
+  auto_pa_announcement: boolean;
+  is_enabled: boolean;
+}
+
+export interface ForensicSnapshot {
+  id: string;
+  dataUrl: string;
+  timestamp: string;
+  cameraId: string;
+  threatType?: string;
+  confidence?: number;
+  eventId?: string;
+  zoneId?: string;
+}
+

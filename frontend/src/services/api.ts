@@ -23,6 +23,12 @@ export const apiClient = axios.create({
   },
 });
 
+apiClient.interceptors.request.use(config => {
+  const apiKey = typeof window !== 'undefined' ? window.sessionStorage.getItem('smart_store_api_key') : null;
+  if (apiKey) config.headers.set('X-API-Key', apiKey);
+  return config;
+});
+
 apiClient.interceptors.response.use(
   (response) => {
     // If Vercel rewrote /api to index.html, response.data will be HTML text
@@ -104,6 +110,32 @@ export const apiService = {
     return response.data;
   },
 
+  async getEvidenceGallery(threatOnly: boolean = true, limit: number = 60): Promise<StoreEvent[]> {
+    const response = await apiClient.get<StoreEvent[]>('/events/evidence/gallery', {
+      params: { threat_only: threatOnly, limit }
+    });
+    return response.data;
+  },
+
+  async uploadSnapshot(payload: {
+    image: string;
+    event_id?: string;
+    camera_id?: string;
+    event_type?: string;
+    severity?: string;
+    description?: string;
+  }): Promise<{ status: string; event_id: string; snapshot_url: string; filename: string }> {
+    const response = await apiClient.post('/events/upload_snapshot', payload);
+    return response.data;
+  },
+
+  resolveSnapshotUrl(url?: string | null): string {
+    if (!url) return '';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    const base = API_BASE_URL.startsWith('http') ? API_BASE_URL.replace(/\/api\/?$/, '') : '';
+    return `${base}${url}`;
+  },
+
   // Video Streaming & Webcam
   getVideoStreamUrl(cameraId: string, source: string = 'sample', showZones: boolean = true, showBBoxes: boolean = true): string {
     const base = API_BASE_URL.startsWith('http') ? API_BASE_URL : window.location.origin + API_BASE_URL;
@@ -132,9 +164,13 @@ export const apiService = {
     zone_counts: Record<string, number>;
     frame_width?: number;
     frame_height?: number;
+    inference_ms?: number;
+    person_confidence_threshold?: number;
+    threat_confidence_threshold?: number;
     annotated_image?: string;
   }> {
     const response = await apiClient.post('/video/process_browser_frame', payload);
     return response.data;
   }
 };
+

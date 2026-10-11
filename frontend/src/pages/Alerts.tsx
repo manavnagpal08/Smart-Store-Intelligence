@@ -12,14 +12,12 @@ import {
   CheckSquare,
   Square,
   X,
-  Shield,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { SeverityBadge } from '../components/common/SeverityBadge';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { EmptyState } from '../components/common/EmptyState';
 import { AuditDossierModal } from '../components/modals/AuditDossierModal';
-import { WebhookManagerModal } from '../components/modals/WebhookManagerModal';
 import { formatDateTime, formatTimeAgo, formatEventType } from '../utils/formatters';
 
 export const Alerts: React.FC = () => {
@@ -32,7 +30,6 @@ export const Alerts: React.FC = () => {
   const [selectedCamera, setSelectedCamera] = useState<string>('ALL');
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [showDossierModal, setShowDossierModal] = useState<boolean>(false);
-  const [showWebhookModal, setShowWebhookModal] = useState<boolean>(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState<boolean>(false);
 
   const safeEvents = Array.isArray(events) ? events : [];
@@ -182,14 +179,6 @@ export const Alerts: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setShowWebhookModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-3.5 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors shadow-2xs"
-            >
-              <Shield className="h-3.5 w-3.5" />
-              <span>Webhooks Push</span>
-            </button>
-
             <button
               onClick={() => setShowDossierModal(true)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50/80 px-3.5 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-100 transition-colors shadow-2xs"
@@ -496,10 +485,6 @@ export const Alerts: React.FC = () => {
         <AuditDossierModal onClose={() => setShowDossierModal(false)} />
       )}
 
-      {/* Webhook Push & Integration Modal */}
-      {showWebhookModal && (
-        <WebhookManagerModal onClose={() => setShowWebhookModal(false)} />
-      )}
     </div>
   );
 };

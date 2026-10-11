@@ -59,7 +59,7 @@ export const VoicePADispatcherModal: React.FC<Props> = ({ onClose }) => {
 
     setIsBroadcasting(false);
     setBroadcastLog(prev => [
-      `[${new Date().toLocaleTimeString()}] Broadcasted: "${textToSend}"`,
+      `[${new Date().toLocaleTimeString()}] Played locally: "${textToSend}"`,
       ...prev.slice(0, 4),
     ]);
   };
@@ -74,8 +74,8 @@ export const VoicePADispatcherModal: React.FC<Props> = ({ onClose }) => {
               <Mic className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Floor Intercom & Speech Synthesizer PA System</h3>
-              <p className="text-[11px] text-slate-500">Live text-to-speech synthesized audio broadcasting to retail ceiling speakers</p>
+              <h3 className="text-sm font-bold text-slate-900">Local Voice Announcement</h3>
+              <p className="text-[11px] text-slate-500">Browser text-to-speech playback on this device</p>
             </div>
           </div>
 
@@ -160,7 +160,7 @@ export const VoicePADispatcherModal: React.FC<Props> = ({ onClose }) => {
                 className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-2 text-xs font-semibold text-white hover:bg-brand-800 shadow-xs transition-colors disabled:opacity-50"
               >
                 <Radio className={`h-3.5 w-3.5 ${isBroadcasting ? 'animate-pulse text-amber-300' : ''}`} />
-                <span>{isBroadcasting ? 'Broadcasting to PA...' : 'Broadcast Floor PA Audio'}</span>
+                <span>{isBroadcasting ? 'Playing announcement...' : 'Play on This Device'}</span>
               </button>
             </div>
           </div>

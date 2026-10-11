@@ -9,7 +9,7 @@ An AI, Computer Vision, and Enterprise Backend retail operations and safety inte
 Retail stores rely on CCTV cameras for safety, queue management, and operational monitoring. The **Smart Store Safety & Operations Intelligence System** automates video feed analysis to detect operational conditions such as overcrowded aisles, long checkout queues, restricted-area entries, and aisle obstructions without human intervention.
 
 > [!IMPORTANT]
-> **Privacy-First Architecture**: The system uses strict anonymous tracking (e.g., `TRACK-001`). It does **NOT** use facial recognition, biometric storage, demographic estimation, or individual identity tracking.
+> **Privacy-conscious architecture**: The included pipeline assigns anonymous track IDs and does not include facial-recognition models. Each operator remains responsible for camera placement, access controls, retention, notices, and compliance in the deployment jurisdiction.
 
 ---
 
@@ -86,20 +86,20 @@ A modular, multi-tier intelligent store operations platform:
 | **Store Intelligence** | Python 3.13, Rule Engine, Severity Calculator |
 | **Backend REST API** | FastAPI, Uvicorn, Pydantic, SQLAlchemy |
 | **Business Validation** | Java 21, Object-Oriented Design, JUnit 5 |
-| **Relational Database** | MySQL 8.0+ / SQLite 3 Fallback |
+| **Relational Database** | MySQL 8.0+ or SQLite 3, selected explicitly by configuration |
 | **Frontend Dashboard** | React 18, TypeScript, Vite, Tailwind CSS, Recharts, Axios, Lucide React |
 
 ---
 
-## 🗺️ 6. Project Phases Summary
+## 🗺️ 6. Implementation Status
 
 | Phase | Description | Status |
 |---|---|---|
-| **Phase 1** | **Computer Vision Foundation** (YOLOv8, ByteTrack, Polygonal Zones, JSON Telemetry) | **✅ COMPLETE** (18/18 Tests) |
-| **Phase 2** | **Store Intelligence & Alerts** (Crowd, Queue, Restricted, Obstruction, Severity) | **✅ COMPLETE** (18/18 Tests) |
-| **Phase 3** | **Backend, Database & Java** (FastAPI REST, MySQL Schema, Java OOP Rules) | **✅ COMPLETE** (11/11 Tests + 10 Java) |
-| **Phase 4** | **React Operations Dashboard** (6 Pages, CCTV HUD, Status Lifecycle, Analytics) | **✅ COMPLETE** (Build Passed) |
-| **Phase 5** | **Final Integration & Verification** (E2E Scenarios, Consistency, Benchmarks, Demo) | **✅ COMPLETE** (7/7 E2E Tests) |
+| **Vision and tracking** | YOLO detection, anonymous tracking, overlays, zone evaluation | Implemented; accuracy depends on model, camera, and calibration |
+| **Incident intelligence** | Crowd, queue, restricted-area, obstruction and severity rules | Implemented and covered by automated tests |
+| **Backend and storage** | REST API, event lifecycle, camera/zone registry, audit history | Implemented; production writes require an operator API key |
+| **Java validation** | Supporting business-rule subprocess with Python fallback | Implemented; Java runtime and compiled classes must be deployed |
+| **Operations dashboard** | Dashboard, alerts, analytics, camera registry and monitoring | Implemented; shows backend data without fabricated fallbacks |
 
 ---
 
@@ -116,9 +116,7 @@ A modular, multi-tier intelligent store operations platform:
 
 ## 📹 8. Dataset & Test Feeds
 
-* Sample CCTV Test Video: [`datasets/sample/sample_cctv.mp4`](file:///C:/Users/275680/Desktop/java%20project%20v2/datasets/sample/sample_cctv.mp4)
-* Camera Resolution: 1920x1080 @ 30 FPS.
-* Seed Database: [`database/seed_data.sql`](file:///C:/Users/275680/Desktop/java%20project%20v2/database/seed_data.sql)
+The bundled video and SQL seed file are development fixtures. They are disabled by default in the application. Set `ENABLE_SAMPLE_VIDEO=true` or `SEED_DEMO_DATA=true` only in a development environment.
 
 ---
 
@@ -148,9 +146,26 @@ cd ..
 
 ## 🚀 10. Running the System
 
+### Production configuration
+
+Set these environment variables before starting a production deployment:
+
+```env
+ENVIRONMENT=production
+DATABASE_URL=mysql+pymysql://USER:PASSWORD@HOST:3306/DATABASE
+API_KEY=generate-a-long-random-secret
+CORS_ORIGINS=https://your-dashboard.example
+TRUSTED_HOSTS=your-api.example
+DEBUG=false
+SEED_DEMO_DATA=false
+ENABLE_SAMPLE_VIDEO=false
+```
+
+The dashboard operator enters the API key under **Settings → Operator Write Access**. The browser keeps it only for the current tab session. Serve both frontend and API over HTTPS. Register cameras and zones through the protected API before opening live monitoring. Production API documentation is disabled.
+
 ### Step 1: Start the FastAPI Backend
 ```bash
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 ```
 * **Interactive API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 * **System Health Check**: [http://localhost:8000/api/health](http://localhost:8000/api/health)
@@ -162,9 +177,9 @@ npm run dev
 ```
 * **Store Dashboard UI**: [http://localhost:5173](http://localhost:5173)
 
-### Step 3: Run the Computer Vision Live Pipeline (Optional)
+### Step 3: Run the Computer Vision Pipeline
 ```bash
-python run_store_intelligence.py --source datasets/sample/sample_cctv.mp4 --save-video
+python run_store_intelligence.py --source "rtsp://camera-host/live" --save-video
 ```
 
 ---
@@ -189,23 +204,16 @@ python scripts/verify_system_performance.py
 
 ---
 
-## 📊 12. Measured Performance Benchmarks
+## 📊 12. Performance
 
-* **Computer Vision Inference**: **2.21 – 3.85 FPS** on standard CPU (1080p stream downsampled for YOLOv8n).
-* **Backend API Latencies**:
-  * `/api/health`: **22.79 ms**
-  * `/api/events/active`: **24.21 ms**
-  * `/api/cameras`: **30.24 ms**
-  * `/api/events`: **47.18 ms**
-* **Java Validation Speed**: **441.77 ms** (process startup & rule validation).
-* **Frontend Bundle**: **737.38 kB** JS (`209.42 kB` Gzip), **30.59 kB** CSS (`5.88 kB` Gzip).
+Performance depends on the deployed CPU/GPU, model, camera resolution, number of streams, database, and network. Measure the target environment with `python scripts/verify_system_performance.py`; do not treat development-machine results as a production capacity guarantee.
 
 ---
 
 ## ⚠️ 13. Known Limitations
 
 * **Inference Speed**: Real-time 30 FPS processing requires GPU/CUDA acceleration (CPU currently yields 2-4 FPS).
-* **Demonstration Video**: Utilizes sample test CCTV video files rather than live multi-RTSP camera feeds.
+* **Camera integration**: Register real camera stream sources before enabling monitoring. Production does not use the bundled sample video.
 * **Aisle Obstruction**: Employs stationary track dwell heuristics rather than physical 3D object segmentation.
 * **No Facial Recognition / Biometrics**: Intentionally omitted to guarantee full privacy compliance.
 
@@ -213,10 +221,11 @@ python scripts/verify_system_performance.py
 
 ## 🔒 14. Privacy & Compliance
 
-The system strictly follows Privacy-by-Design guidelines:
+The included implementation is designed to minimize identity data:
 * Uses randomized anonymous identifiers (`TRACK-001`, `TRACK-002`).
 * Zero facial recognition or facial cropping models.
-* Zero storage of personally identifiable information (PII) or biometrics.
+* The supplied models and schemas do not intentionally store biometric templates or names.
+* Production operators must validate logs, snapshots, recordings, retention, access, notices, and applicable legal requirements.
 
 ---
 
@@ -234,7 +243,7 @@ The system strictly follows Privacy-by-Design guidelines:
 1. **Introduction (0:00–0:30)**: Explain the problem of manual CCTV fatigue in retail store monitoring.
 2. **Architecture (0:30–1:00)**: Walk through the 4-tier pipeline (Vision $\to$ Intelligence $\to$ FastAPI $\to$ Java Validation $\to$ Database $\to$ React).
 3. **Live Monitoring (1:00–1:45)**: Open `/live-monitoring`, show camera feed switching, zone polygon overlays, and anonymous track bounding boxes.
-4. **Triggering Incident (1:45–2:30)**: Inject a synthetic CV detection via `/settings` or run the video stream pipeline. Show Java validating the event and inserting it into the database.
+4. **Triggering Incident (1:45–2:30)**: Run a configured camera or development fixture through the pipeline and show the resulting validated event.
 5. **Dashboard & Lifecycle Resolution (2:30–3:30)**: Show the alert populating the `/dashboard` and `/alerts` pages. Click **Acknowledge**, then **Resolve**, and show the updated audit history.
 6. **Analytics (3:30–4:30)**: View the `/analytics` page for hourly trends and zone safety scores.
 

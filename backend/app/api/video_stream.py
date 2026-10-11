@@ -19,7 +19,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from backend.app.database.session import get_db
+from backend.app.config import settings
+from backend.app.security import require_api_key
 from backend.app.models.event import EventDB
+from backend.app.models.camera import CameraDB
 from ml.detection.person_detector import PersonDetector
 from ml.tracking.person_tracker import PersonTracker
 from ml.zones.zone_manager import ZoneManager
@@ -50,13 +53,13 @@ def get_cv_components():
     global _detector, _tracker, _zone_manager, _weapon_detector, _fight_detector, _theft_detector, _fall_detector, _abandoned_detector
     if _detector is None:
         model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../yolov8n.pt"))
-        _detector = PersonDetector(model_path=model_path, confidence_threshold=0.12)
-        _tracker = PersonTracker(confidence_threshold=0.12)
-        _weapon_detector = WeaponDetector(confidence_threshold=0.08, cooldown_seconds=5.0)
+        _detector = PersonDetector(model_path=model_path, confidence_threshold=0.40)
+        _tracker = PersonTracker(confidence_threshold=0.40)
+        _weapon_detector = WeaponDetector(confidence_threshold=0.45, cooldown_seconds=15.0)
         _fight_detector = FightDetector(cooldown_seconds=10.0)
         _theft_detector = TheftDetector(cooldown_seconds=15.0)
-        _fall_detector = SlipAndFallDetector(aspect_ratio_threshold=1.15, persistence_frames=4, cooldown_seconds=15.0)
-        _abandoned_detector = AbandonedObjectDetector(confidence_threshold=0.15, cooldown_seconds=20.0)
+        _fall_detector = SlipAndFallDetector(aspect_ratio_threshold=1.25, persistence_frames=5, cooldown_seconds=20.0)
+        _abandoned_detector = AbandonedObjectDetector(confidence_threshold=0.40, cooldown_seconds=20.0)
 
         zone_config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../ml/config/zones.json"))
         if os.path.exists(zone_config_path):
@@ -124,6 +127,8 @@ def generate_mjpeg_stream(
         source_name = f"Laptop Webcam {source}"
         cap = cv2.VideoCapture(video_src, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(video_src)
     elif source == "sample" or "sample_cctv" in source:
+        if not settings.ENABLE_SAMPLE_VIDEO:
+            raise ValueError("Sample video is disabled")
         sample_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../datasets/sample/sample_cctv.mp4"))
         video_src = sample_path
         source_name = "CCTV Sample Video"
@@ -134,10 +139,9 @@ def generate_mjpeg_stream(
         cap = cv2.VideoCapture(video_src)
 
     if not cap.isOpened():
-        logger.warning(f"Failed to open video source: {video_src}. Using test synthetic stream fallback.")
-        sample_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../datasets/sample/sample_cctv.mp4"))
-        cap = cv2.VideoCapture(sample_path)
-        source_name = "CCTV Ingest (Fallback)"
+        logger.error("Failed to open video source for camera %s", camera_id)
+        cap.release()
+        return
 
     prev_time = time.time()
 
@@ -145,9 +149,12 @@ def generate_mjpeg_stream(
         while True:
             success, frame = cap.read()
             if not success or frame is None:
-                # Loop video if it's a file
-                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                success, frame = cap.read()
+                if source == "sample" and settings.ENABLE_SAMPLE_VIDEO:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    success, frame = cap.read()
+                else:
+                    logger.warning("Video source ended or disconnected for camera %s", camera_id)
+                    break
                 if not success or frame is None:
                     time.sleep(0.1)
                     continue
@@ -255,18 +262,30 @@ def generate_mjpeg_stream(
 @router.get("/stream/{camera_id}")
 def stream_camera_feed(
     camera_id: str,
-    source: str = Query(default="sample", description="Source: '0' for laptop webcam, 'sample' for CCTV test video, or RTSP url"),
+    source: Optional[str] = Query(default=None, description="Development-only source override"),
     show_zones: bool = Query(default=True, description="Overlay zone polygons"),
     show_bboxes: bool = Query(default=True, description="Overlay YOLO bounding boxes"),
     conf: float = Query(default=0.25, description="Confidence threshold"),
+    db: Session = Depends(get_db),
 ):
     """
     Live MJPEG video stream with real-time YOLOv8 person detection, weapon scanning, and ByteTrack.
     Can stream from Laptop Webcam (source=0), CCTV Video (source=sample), or Custom RTSP.
     """
+    camera = db.query(CameraDB).filter(CameraDB.camera_id == camera_id).first()
+    if settings.ENVIRONMENT.lower() == "production":
+        if not camera or not camera.stream_source:
+            raise HTTPException(status_code=404, detail="Camera stream is not configured.")
+        resolved_source = camera.stream_source
+    else:
+        resolved_source = source or (camera.stream_source if camera else None)
+    if not resolved_source:
+        raise HTTPException(status_code=404, detail="Camera stream is not configured.")
+    if resolved_source == "sample" and not settings.ENABLE_SAMPLE_VIDEO:
+        raise HTTPException(status_code=404, detail="Sample video is disabled.")
     return StreamingResponse(
         generate_mjpeg_stream(
-            source=source,
+            source=resolved_source,
             camera_id=camera_id,
             show_zones=show_zones,
             show_bboxes=show_bboxes,
@@ -279,16 +298,15 @@ def stream_camera_feed(
 @router.get("/sources")
 def get_available_sources():
     """Returns list of selectable video sources (CCTV Video, Laptop Webcam, RTSP)."""
-    return {
-        "sources": [
-            {
+    sources = [
+            *([{
                 "id": "cctv_sample",
-                "name": "CCTV Ingest Feed (Main Floor)",
+                "name": "Development Sample Video",
                 "source": "sample",
                 "type": "video_file",
                 "is_default": True,
                 "description": "1080p retail CCTV sample video"
-            },
+            }] if settings.ENABLE_SAMPLE_VIDEO else []),
             {
                 "id": "laptop_webcam",
                 "name": "Laptop Webcam (Device 0)",
@@ -314,13 +332,57 @@ def get_available_sources():
                 "description": "External RTSP stream"
             }
         ]
-    }
+    return {"sources": sources}
+
+
+SNAPSHOTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../snapshots"))
+os.makedirs(SNAPSHOTS_DIR, exist_ok=True)
+
+
+def save_threat_snapshot(frame: np.ndarray, event_id: str, label: str, tracks: List[dict], weapons: List[dict]) -> str:
+    """Save an annotated forensic snapshot of the frame to disk with bounding boxes and timestamp."""
+    try:
+        annotated = frame.copy()
+        h, w = annotated.shape[:2]
+
+        # Draw tracks
+        for td in tracks:
+            x1, y1, x2, y2 = td.get("bbox", [0, 0, 0, 0])
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 120, 0), 2)
+
+        # Draw weapons / threats in crimson
+        for wd in weapons:
+            wx1, wy1, wx2, wy2 = wd.get("bbox", [0, 0, 0, 0])
+            cv2.rectangle(annotated, (wx1, wy1), (wx2, wy2), (0, 0, 255), 3)
+
+        # Draw forensic header banner
+        cv2.rectangle(annotated, (0, 0), (w, 40), (15, 23, 42), -1)
+        timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cv2.putText(
+            annotated,
+            f"AUTO-CAPTURED THREAT: {label.upper()} | {timestamp_str} | ID: {event_id}",
+            (15, 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.48,
+            (50, 50, 255),
+            2,
+            cv2.LINE_AA
+        )
+
+        filename = f"SNAPSHOT_{event_id}.jpg"
+        file_path = os.path.join(SNAPSHOTS_DIR, filename)
+        cv2.imwrite(file_path, annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        return f"/api/events/snapshots/{filename}"
+    except Exception as e:
+        logger.error(f"Failed to auto-save snapshot for {event_id}: {e}")
+        return ""
 
 
 @router.post("/process_browser_frame")
 def process_browser_frame(
     payload: Dict[str, Any] = Body(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: None = Depends(require_api_key)
 ):
     """
     Processes a single frame uploaded directly from a browser webcam.
@@ -336,11 +398,18 @@ def process_browser_frame(
     image_b64 = payload.get("image", "")
     camera_id = payload.get("camera_id", "CAM-01")
 
+    if not isinstance(image_b64, str) or not image_b64:
+        raise HTTPException(status_code=400, detail="A base64-encoded image is required.")
+    if len(image_b64) > 14_000_000:
+        raise HTTPException(status_code=413, detail="Image payload exceeds the 10 MB limit.")
+    if not db.query(CameraDB).filter(CameraDB.camera_id == camera_id).first():
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_id}' is not registered.")
+
     if "," in image_b64:
         image_b64 = image_b64.split(",")[1]
 
     try:
-        img_bytes = base64.b64decode(image_b64)
+        img_bytes = base64.b64decode(image_b64, validate=True)
         np_arr = np.frombuffer(img_bytes, np.uint8)
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         if frame is None:
@@ -349,6 +418,12 @@ def process_browser_frame(
         raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
 
     h, w = frame.shape[:2]
+    if w < 160 or h < 120:
+        raise HTTPException(status_code=422, detail="Camera frame is too small for reliable analysis.")
+    if w > 3840 or h > 2160:
+        raise HTTPException(status_code=422, detail="Camera frame exceeds the supported 4K resolution.")
+
+    inference_started = time.perf_counter()
 
     # 1. Direct YOLO Person Detection & Tracking
     raw_dets = detector.detect(frame)
@@ -392,11 +467,31 @@ def process_browser_frame(
 
     all_abnormal_events = weapon_events + fight_events + theft_events + fall_events + abandoned_events
 
-    # Persist critical emergency events to database
+    # Persist critical emergency events to database with automatic snapshot capture
+    event_dicts = []
     for ab_evt in all_abnormal_events:
         try:
+            # Automatically generate & persist high-resolution forensic snapshot
+            snap_url = save_threat_snapshot(
+                frame,
+                ab_evt.event_id,
+                ab_evt.event_type,
+                track_dicts,
+                weapon_dets
+            )
+
+            evt_dict = ab_evt.to_dict()
+            if snap_url:
+                evt_dict["snapshot_url"] = snap_url
+            event_dicts.append(evt_dict)
+
             existing = db.query(EventDB).filter(EventDB.event_id == ab_evt.event_id).first()
             if not existing:
+                evt_details = ab_evt.details or {}
+                if snap_url:
+                    evt_details["snapshot_url"] = snap_url
+                    evt_details["auto_captured"] = True
+
                 db_event = EventDB(
                     event_id=ab_evt.event_id,
                     event_type=ab_evt.event_type,
@@ -408,9 +503,13 @@ def process_browser_frame(
                     status=ab_evt.status,
                     description=ab_evt.description,
                     people_count=ab_evt.people_count or len(track_dicts),
-                    details=ab_evt.details,
+                    details=evt_details,
+                    snapshot_url=snap_url if snap_url else None
                 )
                 db.add(db_event)
+                db.commit()
+            elif snap_url and not existing.snapshot_url:
+                existing.snapshot_url = snap_url
                 db.commit()
         except Exception as e:
             logger.error(f"Error persisting abnormal event: {e}")
@@ -423,9 +522,12 @@ def process_browser_frame(
         "tracks": track_dicts,
         "weapons": weapon_dets,
         "abandoned_objects": abandoned_dets,
-        "abnormal_events": [evt.to_dict() for evt in all_abnormal_events],
+        "abnormal_events": event_dicts,
         "threat_count": len(weapon_dets) + len(fight_events) + len(fall_events),
         "zone_counts": zone_counts,
         "frame_width": w,
         "frame_height": h,
+        "inference_ms": round((time.perf_counter() - inference_started) * 1000, 1),
+        "person_confidence_threshold": detector.confidence_threshold,
+        "threat_confidence_threshold": weapon_det.confidence_threshold,
     }

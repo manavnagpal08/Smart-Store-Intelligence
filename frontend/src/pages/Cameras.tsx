@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Camera,
   Video,
@@ -11,104 +11,38 @@ import {
   CheckCircle,
   MapPin,
   Clock,
-  Sliders
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
-import { ZonePolygonEditorModal } from '../components/zones/ZonePolygonEditorModal';
 
 export const Cameras: React.FC = () => {
   const navigate = useNavigate();
   const { cameras, zones, activeEvents } = useStore();
   const safeActiveEvents = Array.isArray(activeEvents) ? activeEvents : [];
 
-  const cameraCards = [
-    {
-      id: 'CAM-01',
-      name: 'Main Entrance & Aisle A',
-      location: 'North Entrance Hall',
-      stream: 'datasets/sample/sample_cctv.mp4',
-      status: 'ACTIVE',
-      fps: 30,
-      resolution: '1920x1080',
-      zones: ['ENTRANCE', 'AISLE-A'],
-      peopleCount: 4,
-      alertsCount: safeActiveEvents.filter(e => e.camera_id === 'CAM-01').length,
-    },
-    {
-      id: 'CAM-02',
-      name: 'Checkout Area & Storage Door',
-      location: 'Front Cashier Lanes',
-      stream: 'rtsp://store-cam-02.local/live',
-      status: 'ACTIVE',
-      fps: 30,
-      resolution: '1920x1080',
-      zones: ['CHECKOUT-01', 'STAFF-STORAGE'],
-      peopleCount: 6,
-      alertsCount: safeActiveEvents.filter(e => e.camera_id === 'CAM-02').length,
-    },
-    {
-      id: 'CAM-03',
-      name: 'Aisle B & Grocery Shelves',
-      location: 'Central Grocery Row',
-      stream: 'rtsp://store-cam-03.local/live',
-      status: 'ACTIVE',
-      fps: 25,
-      resolution: '1920x1080',
-      zones: ['AISLE-B'],
-      peopleCount: 2,
-      alertsCount: safeActiveEvents.filter(e => e.camera_id === 'CAM-03').length,
-    },
-    {
-      id: 'CAM-04',
-      name: 'Back Loading & Staff Locker',
-      location: 'Rear Loading Dock',
-      stream: 'rtsp://store-cam-04.local/live',
-      status: 'STANDBY',
-      fps: 15,
-      resolution: '1280x720',
-      zones: ['RESTRICTED-REAR'],
-      peopleCount: 0,
-      alertsCount: safeActiveEvents.filter(e => e.camera_id === 'CAM-04').length,
-    },
-  ];
+  const cameraCards = cameras.map(camera => ({
+    id: camera.camera_id,
+    name: camera.camera_name,
+    location: camera.location || 'Location not configured',
+    stream: camera.stream_source || 'Stream source not configured',
+    status: camera.status || 'UNKNOWN',
+    configured: Boolean(camera.stream_source),
+    fps: null as number | null,
+    resolution: null as string | null,
+    zones: zones.filter(zone => zone.camera_id === camera.camera_id).map(zone => zone.zone_id),
+    peopleCount: null as number | null,
+    alertsCount: safeActiveEvents.filter(event => event.camera_id === camera.camera_id).length,
+  }));
 
-  const zoneRules = [
-    {
-      zoneId: 'ENTRANCE',
-      type: 'ENTRANCE',
-      camera: 'CAM-01',
-      capacity: 8,
-      threshold: 'Count > 8 persons',
-      rule: 'Crowd density alert & entrance flow delay',
-    },
-    {
-      zoneId: 'AISLE-A',
-      type: 'AISLE',
-      camera: 'CAM-01',
-      capacity: 6,
-      threshold: 'Stationary > 10.0s',
-      rule: 'Aisle obstruction & cart congestion',
-    },
-    {
-      zoneId: 'CHECKOUT-01',
-      type: 'CHECKOUT',
-      camera: 'CAM-02',
-      capacity: 4,
-      threshold: 'Wait time > 15.0s',
-      rule: 'Queue congestion & cashier request alert',
-    },
-    {
-      zoneId: 'STAFF-STORAGE',
-      type: 'RESTRICTED',
-      camera: 'CAM-02',
-      capacity: 0,
-      threshold: 'Instant entry (0 tolerance)',
-      rule: 'Restricted area breach & security notification',
-    },
-  ];
+  const zoneRules = zones.map(zone => ({
+    zoneId: zone.zone_id,
+    type: zone.zone_type,
+    camera: zone.camera_id || 'UNASSIGNED',
+    capacity: 'Not configured',
+    threshold: 'Not configured',
+    rule: zone.description || 'No policy description configured',
+  }));
 
-  const [calibratingCameraId, setCalibratingCameraId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -119,18 +53,11 @@ export const Cameras: React.FC = () => {
             CCTV & Zone Infrastructure
           </h2>
           <p className="text-xs text-slate-500 font-medium">
-            4 CCTV Ingest Feeds &bull; 6 Polygon Detection Zones &bull; Hardware Accelerated
+            {cameras.length} registered camera{cameras.length === 1 ? '' : 's'} &bull; {zones.length} configured zone{zones.length === 1 ? '' : 's'}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setCalibratingCameraId('CAM-01')}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
-          >
-            <Sliders className="h-3.5 w-3.5 text-brand-700" />
-            <span>Interactive Polygon Calibration</span>
-          </button>
           <button
             onClick={() => navigate('/live-monitoring')}
             className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors shadow-xs"
@@ -166,17 +93,17 @@ export const Cameras: React.FC = () => {
 
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                    cam.status === 'ACTIVE'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    cam.status === 'ACTIVE' && cam.configured
+                      ? 'bg-sky-50 text-sky-700 border border-sky-200'
                       : 'bg-slate-100 text-slate-600 border border-slate-200'
                   }`}
                 >
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${
-                      cam.status === 'ACTIVE' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                      cam.status === 'ACTIVE' && cam.configured ? 'bg-sky-500' : 'bg-slate-400'
                     }`}
                   />
-                  {cam.status}
+                  {cam.status === 'ACTIVE' && cam.configured ? 'CONFIGURED' : cam.status}
                 </span>
               </div>
 
@@ -185,12 +112,12 @@ export const Cameras: React.FC = () => {
                 <div>
                   <p className="text-[10px] font-semibold text-slate-400 uppercase">FPS / Res</p>
                   <p className="text-xs font-bold font-mono text-slate-700">
-                    {cam.fps} FPS &bull; {cam.resolution}
+                    {cam.fps === null ? 'Not reported' : `${cam.fps} FPS • ${cam.resolution || 'Unknown'}`}
                   </p>
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold text-slate-400 uppercase">Live Headcount</p>
-                  <p className="text-xs font-bold text-slate-900">{cam.peopleCount} Persons</p>
+                  <p className="text-xs font-bold text-slate-900">{cam.peopleCount === null ? 'Not reported' : `${cam.peopleCount} Persons`}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold text-slate-400 uppercase">Active Alerts</p>
@@ -229,13 +156,6 @@ export const Cameras: React.FC = () => {
                 {cam.stream}
               </span>
               <div className="flex items-center space-x-1.5">
-                <button
-                  onClick={() => setCalibratingCameraId(cam.id)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-brand-700 transition-colors shadow-2xs"
-                >
-                  <Sliders className="h-3 w-3 text-brand-600" />
-                  <span>Calibrate</span>
-                </button>
                 <button
                   onClick={() => navigate('/live-monitoring')}
                   className="inline-flex items-center gap-1 rounded-lg bg-brand-50 border border-brand-200/60 px-3 py-1.5 text-xs font-semibold text-brand-800 hover:bg-brand-100 transition-colors shadow-2xs"
@@ -280,7 +200,7 @@ export const Cameras: React.FC = () => {
                   <td className="py-3 px-4 font-mono font-bold text-brand-700">{rule.zoneId}</td>
                   <td className="py-3 px-4 font-semibold text-slate-800">{rule.type}</td>
                   <td className="py-3 px-4 font-mono text-slate-600">{rule.camera}</td>
-                  <td className="py-3 px-4 font-medium text-slate-700">{rule.capacity} persons</td>
+                  <td className="py-3 px-4 font-medium text-slate-700">{rule.capacity}</td>
                   <td className="py-3 px-4 text-slate-600">{rule.threshold}</td>
                   <td className="py-3 px-4 text-slate-600 font-medium">{rule.rule}</td>
                 </tr>
@@ -290,13 +210,6 @@ export const Cameras: React.FC = () => {
         </div>
       </div>
 
-      {/* Polygon Zone Calibration Modal */}
-      {calibratingCameraId && (
-        <ZonePolygonEditorModal
-          cameraId={calibratingCameraId}
-          onClose={() => setCalibratingCameraId(null)}
-        />
-      )}
     </div>
   );
 };

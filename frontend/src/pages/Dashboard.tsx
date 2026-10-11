@@ -10,8 +10,7 @@ import {
   Eye,
   TrendingUp,
   FileText,
-  Mic,
-  Radio
+  Mic
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -31,10 +30,8 @@ import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorBanner } from '../components/common/ErrorBanner';
 import { EmptyState } from '../components/common/EmptyState';
-import { PanicLockdownBanner } from '../components/common/PanicLockdownBanner';
 import { AuditDossierModal } from '../components/modals/AuditDossierModal';
 import { VoicePADispatcherModal } from '../components/common/VoicePADispatcherModal';
-import { WebhookManagerModal } from '../components/modals/WebhookManagerModal';
 import { formatDateTime, formatTimeAgo, formatEventType } from '../utils/formatters';
 
 export const Dashboard: React.FC = () => {
@@ -42,10 +39,8 @@ export const Dashboard: React.FC = () => {
   const { events, activeEvents, cameras, zones, isLoading, error, refreshData, setSelectedEvent } =
     useStore();
 
-  const [isLockdown, setIsLockdown] = useState<boolean>(false);
   const [showAuditModal, setShowAuditModal] = useState<boolean>(false);
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
-  const [showWebhookModal, setShowWebhookModal] = useState<boolean>(false);
 
   const safeEvents = Array.isArray(events) ? events : [];
   const safeActiveEvents = Array.isArray(activeEvents) ? activeEvents : [];
@@ -62,35 +57,23 @@ export const Dashboard: React.FC = () => {
   const crowdAlerts = safeEvents.filter(e => e.event_type === 'CROWD_DENSITY');
 
   // Overall Safety Status
-  const storeStatus = isLockdown
-    ? { label: 'EMERGENCY LOCKDOWN PROTOCOL ARMED', color: 'bg-red-600 text-white', status: 'critical' }
-    : criticalAlerts.length > 0
+  const storeStatus = criticalAlerts.length > 0
     ? { label: 'CRITICAL ATTENTION REQUIRED', color: 'bg-red-500 text-white', status: 'critical' }
     : activeEvents.length > 0
     ? { label: 'ELEVATED ACTIVITY - MONITORING', color: 'bg-amber-500 text-white', status: 'warning' }
-    : { label: 'ALL ZONES SAFE & OPTIMAL', color: 'bg-emerald-600 text-white', status: 'healthy' };
+    : { label: 'NO ACTIVE INCIDENTS', color: 'bg-emerald-600 text-white', status: 'healthy' };
 
-  // Calculate Zone Occupancy Chart Data
-  const zoneChartData = [
-    { name: 'Entrance', count: 4, capacity: 8, zoneId: 'ENTRANCE' },
-    { name: 'Aisle A (Snacks)', count: 3, capacity: 6, zoneId: 'AISLE-A' },
-    { name: 'Aisle B (Beverages)', count: 5, capacity: 6, zoneId: 'AISLE-B' },
-    { name: 'Checkout 1', count: 6, capacity: 4, zoneId: 'CHECKOUT-01' },
-    { name: 'Checkout 2', count: 2, capacity: 4, zoneId: 'CHECKOUT-02' },
-    { name: 'Staff Storage', count: isLockdown ? 1 : 0, capacity: 0, zoneId: 'STAFF-STORAGE' },
-  ];
+  const zoneChartData = zones.map(zone => ({
+    name: zone.zone_name,
+    count: safeEvents.filter(event => event.zone_id === zone.zone_id).length,
+    zoneId: zone.zone_id,
+  }));
 
   const recentIncidents = events.slice(0, 7);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {error && <ErrorBanner message={error} onRetry={refreshData} />}
-
-      {/* Emergency Lockdown Action Banner */}
-      <PanicLockdownBanner
-        isLockdown={isLockdown}
-        onToggleLockdown={() => setIsLockdown(!isLockdown)}
-      />
 
       {/* Top Store Operational Status Banner */}
       <div className="glass-panel flex flex-wrap items-center justify-between p-5 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -124,10 +107,8 @@ export const Dashboard: React.FC = () => {
               </span>
             </div>
             <p className="text-sm font-semibold text-slate-800 mt-0.5">
-              {isLockdown
-                ? 'Floor locked down. Siren sounding and all exits alerted.'
-                : activeEvents.length === 0
-                ? 'All safety parameters within operational compliance. Computer vision streams active.'
+              {activeEvents.length === 0
+                ? 'No active incidents are currently reported by the backend.'
                 : `${activeEvents.length} active incident${
                     activeEvents.length > 1 ? 's' : ''
                   } tracked on floor (${criticalAlerts.length} Critical, ${highAlerts.length} High).`}
@@ -138,24 +119,17 @@ export const Dashboard: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-0">
           <button
             onClick={() => setShowVoiceModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
           >
-            <Mic className="h-3.5 w-3.5 text-brand-700" />
-            <span>Floor PA Intercom</span>
+            <Mic className="h-3.5 w-3.5 text-blue-600" />
+            <span>Browser Voice Announcement</span>
           </button>
           <button
             onClick={() => setShowAuditModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
           >
             <FileText className="h-3.5 w-3.5 text-slate-600" />
             <span>Audit Dossier</span>
-          </button>
-          <button
-            onClick={() => setShowWebhookModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
-          >
-            <Radio className="h-3.5 w-3.5 text-blue-600" />
-            <span>Webhooks</span>
           </button>
           <button
             onClick={() => navigate('/live-monitoring')}
@@ -182,7 +156,7 @@ export const Dashboard: React.FC = () => {
           value={events.length}
           subtitle="Processed by Engine"
           icon={TrendingUp}
-          accentColor="purple"
+          accentColor="blue"
           onClick={() => navigate('/alerts')}
         />
         <MetricCard
@@ -190,7 +164,7 @@ export const Dashboard: React.FC = () => {
           value={restrictedBreaches.length}
           subtitle="Vault / Storage Area"
           icon={Ban}
-          accentColor="burgundy"
+          accentColor="red"
           onClick={() => navigate('/alerts')}
         />
         <MetricCard
@@ -210,9 +184,9 @@ export const Dashboard: React.FC = () => {
           onClick={() => navigate('/alerts')}
         />
         <MetricCard
-          title="Active Cameras"
-          value={cameras.length || 4}
-          subtitle="Edge Ingest Feeds"
+          title="Registered Cameras"
+          value={cameras.length}
+          subtitle="Backend camera records"
           icon={Camera}
           accentColor="emerald"
           onClick={() => navigate('/cameras')}
@@ -243,48 +217,16 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              id: 'CAM-01',
-              name: 'North Entrance & Aisle A',
-              location: 'North Entry Hallway',
-              zone: 'ENTRANCE (Aisle A)',
-              status: 'ONLINE',
-              fps: '30 FPS',
-              count: 4,
-              color: 'border-purple-200 bg-purple-50/20'
-            },
-            {
-              id: 'CAM-02',
-              name: 'Checkout & Cashier Quad',
-              location: 'Front Cashier Lanes',
-              zone: 'CHECKOUT-01 (Lanes)',
-              status: 'ONLINE',
-              fps: '30 FPS',
-              count: 6,
-              color: 'border-amber-200 bg-amber-50/20'
-            },
-            {
-              id: 'CAM-03',
-              name: 'Snack & Grocery Aisles',
-              location: 'Center Merchandise Rows',
-              zone: 'AISLE-B (Shelves)',
-              status: 'ONLINE',
-              fps: '25 FPS',
-              count: 2,
-              color: 'border-blue-200 bg-blue-50/20'
-            },
-            {
-              id: 'CAM-04',
-              name: 'Restricted Back Vault',
-              location: 'High-Value Storage',
-              zone: 'STAFF-STORAGE (Vault)',
-              status: isLockdown ? 'ALERT' : 'SECURED',
-              fps: '15 FPS',
-              count: isLockdown ? 1 : 0,
-              color: isLockdown ? 'border-red-300 bg-red-50/30 animate-pulse' : 'border-emerald-200 bg-emerald-50/20'
-            },
-          ].map(cam => (
+          {cameras.map(camera => ({
+            id: camera.camera_id,
+            name: camera.camera_name,
+            location: camera.location || 'Location not configured',
+            zone: zones.filter(zone => zone.camera_id === camera.camera_id).map(zone => zone.zone_name).join(', ') || 'No zones assigned',
+            status: camera.status || 'UNKNOWN',
+            configured: Boolean(camera.stream_source),
+            count: safeActiveEvents.filter(event => event.camera_id === camera.camera_id).length,
+            color: 'border-slate-200 bg-slate-50/20',
+          })).map(cam => (
             <div
               key={cam.id}
               onClick={() => navigate('/live-monitoring')}
@@ -292,11 +234,11 @@ export const Dashboard: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
-                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className={`flex h-2.5 w-2.5 rounded-full ${cam.configured ? 'bg-sky-500' : 'bg-slate-400'}`} />
                   <span className="font-mono text-xs font-bold text-slate-900">{cam.id}</span>
                 </div>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                  {cam.fps}
+                  {cam.status === 'ACTIVE' && cam.configured ? 'CONFIGURED' : cam.status}
                 </span>
               </div>
 
@@ -306,8 +248,8 @@ export const Dashboard: React.FC = () => {
               <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
                 <span className="text-slate-500 font-medium">{cam.zone}</span>
                 <span className="font-bold text-slate-800 flex items-center gap-1">
-                  <Users className="h-3 w-3 text-slate-400" />
-                  {cam.count}
+                  <AlertTriangle className="h-3 w-3 text-slate-400" />
+                  {cam.count} alerts
                 </span>
               </div>
             </div>
@@ -326,7 +268,7 @@ export const Dashboard: React.FC = () => {
               </h2>
               <p className="text-xs text-slate-500">Real-time store floor safety events</p>
             </div>
-            <span className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 border border-purple-200">
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 border border-slate-200">
               {activeEvents.length} Active
             </span>
           </div>
@@ -342,7 +284,7 @@ export const Dashboard: React.FC = () => {
                 <div
                   key={event.event_id}
                   onClick={() => setSelectedEvent(event)}
-                  className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-white/70 p-3.5 hover:bg-white hover:border-brand-300 hover:shadow-xs cursor-pointer transition-all duration-150"
+                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3.5 hover:border-slate-400 hover:shadow-xs cursor-pointer transition-all duration-150"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
@@ -390,17 +332,17 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Live Zone Occupancy Chart (5 cols) */}
+        {/* Recorded events by configured zone. */}
         <div className="glass-panel p-5 lg:col-span-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-                  Zone Occupancy vs. Capacity
+                  Recorded Events by Zone
                 </h2>
-                <p className="text-xs text-slate-500">Live headcounts across polygon retail zones</p>
+                <p className="text-xs text-slate-500">Events currently loaded from the backend</p>
               </div>
-              <span className="text-xs font-semibold text-slate-500">Live Headcounts</span>
+              <span className="text-xs font-semibold text-slate-500">Event totals</span>
             </div>
 
             <div className="h-64 w-full pt-4">
@@ -423,17 +365,11 @@ export const Dashboard: React.FC = () => {
                       fontSize: '12px',
                     }}
                   />
-                  <Bar dataKey="count" name="People Count" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="count" name="Recorded Events" radius={[4, 4, 0, 0]}>
                     {zoneChartData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={
-                          entry.zoneId === 'STAFF-STORAGE' && entry.count > 0
-                            ? '#dc2626'
-                            : entry.count > entry.capacity
-                            ? '#d97706'
-                            : '#7e22ce'
-                        }
+                        fill={entry.count > 0 ? '#7e22ce' : '#94a3b8'}
                       />
                     ))}
                   </Bar>
@@ -442,16 +378,8 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-3 text-[11px] text-slate-500">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-purple-600" /> Normal Occupancy
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-amber-500" /> Over Capacity
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-red-600" /> Restricted Area
-            </span>
+          <div className="mt-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500">
+            Counts reflect the loaded event history and are not live occupancy measurements.
           </div>
         </div>
       </div>
@@ -537,8 +465,6 @@ export const Dashboard: React.FC = () => {
       {/* Voice Floor PA Modal */}
       {showVoiceModal && <VoicePADispatcherModal onClose={() => setShowVoiceModal(false)} />}
 
-      {/* Webhook Manager Modal */}
-      {showWebhookModal && <WebhookManagerModal onClose={() => setShowWebhookModal(false)} />}
     </div>
   );
 };

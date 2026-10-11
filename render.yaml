@@ -9,4 +9,16 @@ services:
       - key: PORT
         value: 8000
       - key: CORS_ORIGINS
-        value: "*"
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: API_KEY
+        generateValue: true
+      - key: TRUSTED_HOSTS
+        value: smart-store-backend.onrender.com,127.0.0.1,localhost
+      - key: SEED_DEMO_DATA
+        value: false
+      - key: ENABLE_SAMPLE_VIDEO
+        value: false
+      - key: DEBUG
+        value: false

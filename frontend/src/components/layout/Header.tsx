@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Clock, Bell, Shield, Wifi, WifiOff, Menu, Maximize2, Minimize2, Zap } from 'lucide-react';
+import { RefreshCw, Clock, Bell, Shield, Wifi, WifiOff, Menu, Maximize2, Minimize2 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
 interface HeaderProps {
@@ -58,20 +58,14 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleMobileM
       </div>
 
       <div className="flex items-center space-x-2 sm:space-x-3">
-        {/* Edge Engine Latency */}
-        <div className="hidden xl:flex items-center space-x-1.5 rounded-xl bg-purple-50/80 border border-purple-200/60 px-2.5 py-1.5 text-[11px] font-semibold text-purple-800 shadow-2xs">
-          <Zap className="h-3 w-3 text-purple-600" />
-          <span>Edge CV: 16ms</span>
-        </div>
-
         {/* Live Clock */}
-        <div className="hidden lg:flex items-center space-x-1.5 rounded-xl bg-slate-100/80 backdrop-blur-xs border border-slate-200/60 px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 shadow-2xs">
+        <div className="hidden lg:flex items-center space-x-1.5 rounded-xl bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 shadow-2xs">
           <Clock className="h-3.5 w-3.5 text-slate-500" />
           <span>{time}</span>
         </div>
 
         {/* Backend Connectivity Status */}
-        <div className="hidden sm:flex items-center space-x-1.5 rounded-xl border border-slate-200/70 bg-white/70 backdrop-blur-xs px-3 py-1.5 text-xs font-semibold shadow-2xs">
+        <div className="hidden sm:flex items-center space-x-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold shadow-2xs">
           {health?.status === 'healthy' ? (
             <>
               <Wifi className="h-3.5 w-3.5 text-emerald-600" />
@@ -81,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleMobileM
           ) : (
             <>
               <WifiOff className="h-3.5 w-3.5 text-amber-600" />
-              <span className="text-slate-700">Syncing</span>
+              <span className="text-slate-700">{health ? 'Degraded' : 'Offline'}</span>
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
             </>
           )}
@@ -91,10 +85,10 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleMobileM
         <div
           className={`flex items-center space-x-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-semibold shadow-2xs ${
             criticalCount > 0
-              ? 'bg-red-50/90 text-red-700 border border-red-200 animate-pulse'
+              ? 'bg-red-50 text-red-700 border border-red-200 animate-pulse'
               : activeEvents.length > 0
-              ? 'bg-amber-50/90 text-amber-700 border border-amber-200'
-              : 'bg-emerald-50/90 text-emerald-700 border border-emerald-200'
+              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
           }`}
         >
           {criticalCount > 0 ? (
@@ -115,7 +109,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleMobileM
         <button
           onClick={toggleFullscreen}
           title="Toggle Fullscreen Security Console"
-          className="hidden sm:flex items-center rounded-xl border border-slate-200/80 bg-white/80 p-2 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+          className="hidden sm:flex items-center rounded-xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
         >
           {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
         </button>
@@ -125,9 +119,9 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onToggleMobileM
           onClick={refreshData}
           disabled={isRefreshing}
           title={`Last updated: ${lastUpdated ? lastUpdated.toLocaleTimeString() : 'Never'}`}
-          className="flex items-center space-x-1.5 rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-xs p-2 sm:px-3 sm:py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-brand-700 transition-colors shadow-2xs disabled:opacity-50"
+          className="flex items-center space-x-1.5 rounded-xl border border-slate-200 bg-white p-2 sm:px-3 sm:py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-brand-600' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
           <span className="hidden md:inline">Refresh</span>
         </button>
       </div>

@@ -32,17 +32,17 @@ def init_db_engine():
             engine = test_engine
             logger.info("Connected successfully to MySQL database.")
     except Exception as e:
-        logger.warning(f"MySQL connection unavailable ({e}). Using local SQLite database engine for storage.")
-        engine = create_engine(
-            settings.SQLITE_FALLBACK_URL,
-            connect_args={"check_same_thread": False}
-        )
+        if not settings.ALLOW_SQLITE_FALLBACK:
+            logger.error("Configured database is unavailable; startup aborted.")
+            raise RuntimeError("Configured database connection failed") from e
+        logger.warning("Configured database is unavailable; ALLOW_SQLITE_FALLBACK is enabled.")
+        engine = create_engine(settings.SQLITE_FALLBACK_URL, connect_args={"check_same_thread": False})
 
     if engine is None:
         if settings.DATABASE_URL.startswith("sqlite"):
             engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
         else:
-            engine = create_engine(settings.SQLITE_FALLBACK_URL, connect_args={"check_same_thread": False})
+            raise RuntimeError(f"Unsupported DATABASE_URL scheme: {settings.DATABASE_URL.split(':', 1)[0]}")
 
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return engine

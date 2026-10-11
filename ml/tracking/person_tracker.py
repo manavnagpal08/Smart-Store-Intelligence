@@ -44,6 +44,28 @@ class FallbackIoUTracker:
         self.active_tracks: Dict[int, Dict[str, Any]] = {}
 
     @staticmethod
+    def _association_score(track_box: List[int], detection_box: List[int]) -> float:
+        """Combine overlap and normalized centroid distance for stable IDs.
+
+        IoU alone loses a person ID when movement between sampled frames is large
+        enough that two otherwise matching boxes no longer overlap.
+        """
+        iou = FallbackIoUTracker.calculate_iou(track_box, detection_box)
+        tcx = (track_box[0] + track_box[2]) / 2.0
+        tcy = (track_box[1] + track_box[3]) / 2.0
+        dcx = (detection_box[0] + detection_box[2]) / 2.0
+        dcy = (detection_box[1] + detection_box[3]) / 2.0
+        distance = float(np.hypot(tcx - dcx, tcy - dcy))
+        scale = max(
+            float(np.hypot(track_box[2] - track_box[0], track_box[3] - track_box[1])),
+            float(np.hypot(detection_box[2] - detection_box[0], detection_box[3] - detection_box[1])),
+            1.0,
+        )
+        normalized_distance = distance / scale
+        proximity = max(0.0, 1.0 - normalized_distance)
+        return max(iou, proximity * 0.75)
+
+    @staticmethod
     def calculate_iou(box1: List[int], box2: List[int]) -> float:
         """Calculate intersection-over-union between two bounding boxes."""
         x1 = max(box1[0], box2[0])
@@ -73,7 +95,7 @@ class FallbackIoUTracker:
 
             for i, tid in enumerate(track_ids):
                 for j, dbox in enumerate(det_bboxes):
-                    iou_matrix[i, j] = self.calculate_iou(self.active_tracks[tid]["bbox"], dbox)
+                    iou_matrix[i, j] = self._association_score(self.active_tracks[tid]["bbox"], dbox)
 
             # Greedy matching
             while True:

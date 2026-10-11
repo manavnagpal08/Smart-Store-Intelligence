@@ -44,3 +44,21 @@ def test_fallback_tracker_iou():
 
     boxD = [150, 100, 250, 200]  # partial overlap: inter=50*100=5000, union=15000 -> 1/3
     assert pytest.approx(FallbackIoUTracker.calculate_iou(boxA, boxD), 0.01) == 0.333
+
+
+def test_tracker_keeps_id_for_nearby_non_overlapping_motion():
+    tracker = FallbackIoUTracker(iou_threshold=0.3)
+    first = tracker.update([{"bbox": [10, 10, 50, 90], "confidence": 0.9}])
+    second = tracker.update([{"bbox": [52, 10, 92, 90], "confidence": 0.88}])
+
+    assert len(first) == 1
+    assert len(second) == 1
+    assert second[0].track_id == first[0].track_id
+
+
+def test_tracker_does_not_merge_distant_people():
+    tracker = FallbackIoUTracker(iou_threshold=0.3)
+    first = tracker.update([{"bbox": [10, 10, 50, 90], "confidence": 0.9}])
+    second = tracker.update([{"bbox": [400, 10, 440, 90], "confidence": 0.91}])
+
+    assert second[0].track_id != first[0].track_id

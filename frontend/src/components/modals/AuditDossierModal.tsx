@@ -21,7 +21,9 @@ interface Props {
 
 export const AuditDossierModal: React.FC<Props> = ({ onClose }) => {
   const { events, cameras, zones } = useStore();
-  const auditNumber = `AUDIT-SEC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+  const auditSeed = events.map(event => `${event.event_id}:${event.updated_at || event.timestamp}`).join('|');
+  const auditHash = Array.from(auditSeed).reduce((hash, character) => ((hash * 31) + character.charCodeAt(0)) >>> 0, 0);
+  const auditNumber = `AUDIT-SEC-${new Date().getFullYear()}-${auditHash.toString(16).toUpperCase().padStart(8, '0')}`;
   const generationTime = new Date().toLocaleString();
 
   const safeEvents = Array.isArray(events) ? events : [];
@@ -29,13 +31,14 @@ export const AuditDossierModal: React.FC<Props> = ({ onClose }) => {
   const criticalCount = safeEvents.filter(e => e.severity === 'CRITICAL').length;
   const highCount = safeEvents.filter(e => e.severity === 'HIGH').length;
   const resolvedCount = safeEvents.filter(e => e.status === 'RESOLVED').length;
-  const complianceRate = totalDetections > 0 ? Math.round((resolvedCount / totalDetections) * 100) : 100;
+  const resolutionRate = totalDetections > 0 ? Math.round((resolvedCount / totalDetections) * 100) : null;
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleExportCSV = () => {
+    const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const headers = ['Audit ID', 'Event ID', 'Timestamp', 'Detector Type', 'Severity', 'Zone', 'Camera', 'Status', 'Resolved At'];
     const rows = events.map(e => [
       auditNumber,
@@ -49,13 +52,14 @@ export const AuditDossierModal: React.FC<Props> = ({ onClose }) => {
       e.resolved_at || 'N/A'
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = [headers.map(csvCell).join(','), ...rows.map(row => row.map(csvCell).join(','))].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = `smartstore_audit_dossier_${Date.now()}.csv`;
     link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -110,7 +114,7 @@ export const AuditDossierModal: React.FC<Props> = ({ onClose }) => {
                 Store Safety & Operations Verification Dossier
               </h1>
               <p className="text-xs text-slate-500 mt-1">
-                Automated ISO/GDPR compliant audit log derived from continuous 4-layer AI vision telemetry.
+                Operational event export derived from records returned by the configured backend.
               </p>
             </div>
 
@@ -136,11 +140,11 @@ export const AuditDossierModal: React.FC<Props> = ({ onClose }) => {
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Resolution Efficacy</span>
-              <span className="text-xl font-bold font-mono text-emerald-700 mt-1 block">{complianceRate}% Resolved</span>
+              <span className="text-xl font-bold font-mono text-emerald-700 mt-1 block">{resolutionRate === null ? 'No data' : `${resolutionRate}% Resolved`}</span>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Safety Rating</span>
-              <span className="text-xl font-bold font-mono text-brand-700 mt-1 block">GRADE A (Optimal)</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Open High-Risk Events</span>
+              <span className="text-xl font-bold font-mono text-brand-700 mt-1 block">{safeEvents.filter(event => event.status !== 'RESOLVED' && (event.severity === 'HIGH' || event.severity === 'CRITICAL')).length}</span>
             </div>
           </div>
 
@@ -211,14 +215,14 @@ export const AuditDossierModal: React.FC<Props> = ({ onClose }) => {
             <div>
               <p className="font-semibold text-slate-700">Privacy & Compliance Guarantee:</p>
               <p className="mt-0.5">
-                All tracking records are anonymized to bounding centroid vectors (TRACK-xxx) in accordance with GDPR Article 25 privacy-by-design standards. Zero biometrics persisted.
+                This report contains the event fields supplied by the backend. Review your deployment's retention, access, and privacy controls before distributing it.
               </p>
             </div>
             <div className="flex flex-col justify-end items-end text-right">
               <div className="border-b border-slate-300 w-48 pb-1 mb-1 font-mono text-xs font-bold text-slate-900">
-                SYSTEM VERIFIED SIGNATURE
+                REVIEWER SIGN-OFF
               </div>
-              <p className="text-[10px] text-slate-400">Chief Security Officer / Automated Watchdog</p>
+              <p className="text-[10px] text-slate-400">Authorized reviewer</p>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 """SQLAlchemy ORM Model for Cameras."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime
 from sqlalchemy.orm import relationship
 from backend.app.database.connection import Base
@@ -14,7 +14,7 @@ class CameraDB(Base):
     location = Column(String(255), nullable=True)
     stream_source = Column(String(500), nullable=True)
     status = Column(String(30), default="ACTIVE")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     zones = relationship("ZoneDB", back_populates="camera", cascade="all, delete-orphan")

@@ -22,113 +22,39 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-const DEFAULT_CAMERAS: Camera[] = [
-  {
-    camera_id: 'CAM-01',
-    camera_name: 'North Entrance & Aisle A',
-    location: 'North Entry Hallway',
-    status: 'ACTIVE',
-    stream_source: 'sample',
-    created_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    camera_id: 'CAM-02',
-    camera_name: 'Cashier & Checkout Quad',
-    location: 'Front Checkout Lanes',
-    status: 'ACTIVE',
-    stream_source: 'sample',
-    created_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    camera_id: 'CAM-03',
-    camera_name: 'Grocery & Snack Aisles',
-    location: 'Center Merchandise Rows',
-    status: 'ACTIVE',
-    stream_source: 'sample',
-    created_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    camera_id: 'CAM-04',
-    camera_name: 'Restricted Back Office / Vault',
-    location: 'Staff Storage & Vault Corridor',
-    status: 'ACTIVE',
-    stream_source: 'sample',
-    created_at: '2026-01-01T00:00:00Z',
-  },
-];
-
-const DEFAULT_ZONES: Zone[] = [
-  {
-    zone_id: 'ENTRANCE',
-    zone_name: 'Store Entrance & Turnstile',
-    camera_id: 'CAM-01',
-    zone_type: 'ENTRANCE',
-    description: 'Store Entrance & Turnstile Entry Zone',
-  },
-  {
-    zone_id: 'AISLE-A',
-    zone_name: 'Snacks & Beverages (Aisle A)',
-    camera_id: 'CAM-01',
-    zone_type: 'AISLE',
-    description: 'Snacks & Beverages Main Aisle',
-  },
-  {
-    zone_id: 'CHECKOUT-01',
-    zone_name: 'Express Checkout Lane 1',
-    camera_id: 'CAM-02',
-    zone_type: 'CHECKOUT',
-    description: 'Express Cashier Counter 1',
-  },
-  {
-    zone_id: 'STAFF-STORAGE',
-    zone_name: 'Restricted Back Office / Vault',
-    camera_id: 'CAM-04',
-    zone_type: 'RESTRICTED',
-    description: 'High-Security Inventory Storage Vault',
-  },
-];
-
-const DEFAULT_EVENTS: StoreEvent[] = [
-  {
-    event_id: 'EVT-SYS-101',
-    event_type: 'CROWD_DENSITY',
-    camera_id: 'CAM-01',
-    zone_id: 'ENTRANCE',
-    timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-    severity: 'MEDIUM',
-    status: 'RESOLVED',
-    description: 'Entrance gate footfall elevated (6 persons). Automated flow regulation engaged.',
-    people_count: 6,
-    resolved_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-  },
-  {
-    event_id: 'EVT-SYS-102',
-    event_type: 'QUEUE_CONGESTION',
-    camera_id: 'CAM-02',
-    zone_id: 'CHECKOUT-01',
-    timestamp: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
-    severity: 'HIGH',
-    status: 'ACTIVE',
-    description: 'Express Checkout queue exceeded 4 persons. Dynamic cashier paging triggered.',
-    people_count: 5,
+// Keep legacy, low-confidence model outputs in the audit database without
+// presenting them as operational incidents under the current production policy.
+const meetsOperationalConfidencePolicy = (event: StoreEvent): boolean => {
+  if (event.event_type === 'SLIP_AND_FALL') {
+    return event.details?.transition_verified === true;
   }
-];
+  if (event.event_type !== 'WEAPON_DETECTED') return true;
+  const confidence = event.details?.confidence;
+  const threatType = event.details?.threat_type;
+  const supportedThreatTypes = new Set(['KNIFE', 'SCISSORS', 'BAT']);
+  return (
+    typeof confidence === 'number' &&
+    confidence >= 0.45 &&
+    typeof threatType === 'string' &&
+    supportedThreatTypes.has(threatType)
+  );
+};
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [events, setEvents] = useState<StoreEvent[]>(DEFAULT_EVENTS);
-  const [activeEvents, setActiveEvents] = useState<StoreEvent[]>(DEFAULT_EVENTS.filter(e => e.status === 'ACTIVE'));
-  const [cameras, setCameras] = useState<Camera[]>(DEFAULT_CAMERAS);
-  const [zones, setZones] = useState<Zone[]>(DEFAULT_ZONES);
-  const [health, setHealth] = useState<SystemHealth | null>({
-    status: 'healthy',
-    service: 'smart-store-backend',
-    database: 'connected',
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [events, setEvents] = useState<StoreEvent[]>([]);
+  const [activeEvents, setActiveEvents] = useState<StoreEvent[]>([]);
+  const [cameras, setCameras] = useState<Camera[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
-  const [refreshInterval, setRefreshInterval] = useState<number>(5000); // default 5s
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState<number>(() => {
+    const saved = window.localStorage.getItem('smartstore.refreshInterval');
+    const parsed = saved === null ? 5000 : Number(saved);
+    return [0, 5000, 15000, 30000, 60000].includes(parsed) ? parsed : 5000;
+  });
   const [selectedEvent, setSelectedEvent] = useState<StoreEvent | null>(null);
 
   const fetchData = useCallback(async (isBackground = false) => {
@@ -140,7 +66,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setError(null);
 
     try {
-      const [healthData, eventsData, activeEventsData, camerasData, zonesData] = await Promise.allSettled([
+      const [healthData, eventsData, activeEventsData, camerasData, zonesData] = await Promise.all([
         apiService.getHealth(),
         apiService.getEvents({ limit: 100 }),
         apiService.getActiveEvents(50),
@@ -148,25 +74,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         apiService.getZones(),
       ]);
 
-      if (healthData.status === 'fulfilled' && healthData.value && typeof healthData.value === 'object' && 'status' in healthData.value) {
-        setHealth(healthData.value);
-      }
-      if (eventsData.status === 'fulfilled' && Array.isArray(eventsData.value) && eventsData.value.length > 0) {
-        setEvents(eventsData.value);
-      }
-      if (activeEventsData.status === 'fulfilled' && Array.isArray(activeEventsData.value)) {
-        setActiveEvents(activeEventsData.value);
-      }
-      if (camerasData.status === 'fulfilled' && Array.isArray(camerasData.value) && camerasData.value.length > 0) {
-        setCameras(camerasData.value);
-      }
-      if (zonesData.status === 'fulfilled' && Array.isArray(zonesData.value) && zonesData.value.length > 0) {
-        setZones(zonesData.value);
-      }
-
+      setHealth(healthData);
+      setEvents(eventsData.filter(meetsOperationalConfidencePolicy));
+      setActiveEvents(activeEventsData.filter(meetsOperationalConfidencePolicy));
+      setCameras(camerasData);
+      setZones(zonesData);
       setLastUpdated(new Date());
-    } catch {
-      // Keep running smoothly on default topology
+    } catch (err: any) {
+      setHealth(null);
+      setError(err?.response?.data?.detail || err?.message || 'Unable to load live store data.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -208,6 +124,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return () => clearInterval(interval);
   }, [fetchData, refreshInterval]);
+
+  useEffect(() => {
+    window.localStorage.setItem('smartstore.refreshInterval', String(refreshInterval));
+  }, [refreshInterval]);
 
   return (
     <StoreContext.Provider

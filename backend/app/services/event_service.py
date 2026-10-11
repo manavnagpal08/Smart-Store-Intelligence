@@ -1,6 +1,6 @@
 """Event Service for database operations, validation, and lifecycle transitions."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Tuple, Dict, Any
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -87,6 +87,10 @@ class EventService:
             existing.description = event.description
             existing.people_count = event.people_count
             existing.details = event.details
+            if event.snapshot_url:
+                existing.snapshot_url = event.snapshot_url
+            if event.snapshot_base64:
+                existing.snapshot_base64 = event.snapshot_base64
             existing.resolved_at = event.resolved_at
 
             if old_status != target_status:
@@ -115,6 +119,8 @@ class EventService:
             description=event.description,
             people_count=event.people_count,
             details=event.details,
+            snapshot_url=event.snapshot_url,
+            snapshot_base64=event.snapshot_base64,
             resolved_at=event.resolved_at
         )
         db.add(new_event)
@@ -149,7 +155,7 @@ class EventService:
         if old_status != new_status:
             event.status = new_status
             if new_status == "RESOLVED":
-                event.resolved_at = datetime.utcnow()
+                event.resolved_at = datetime.now(timezone.utc)
 
             history = EventHistoryDB(
                 event_id=event.event_id,

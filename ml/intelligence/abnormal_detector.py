@@ -20,21 +20,15 @@ class WeaponDetector:
     using YOLO multi-class object detection.
     """
 
-    # COCO Class IDs for dangerous objects:
-    # 43: knife, 76: scissors, 34: baseball bat, 25: umbrella/club, 42: fork, 39: bottle, 40: wine glass, 44: spoon/utensil, 79: toothbrush/tool
+    # COCO has no firearm class. Only explicit high-risk classes are included;
+    # ordinary bottles, umbrellas and utensils must not become security alerts.
     DANGEROUS_CLASSES = {
-        43: ("KNIFE", "Knife / Sharp Blade"),
-        76: ("SCISSORS", "Scissors / Sharp Blade"),
-        34: ("BAT", "Blunt Weapon / Bat"),
-        25: ("CLUB", "Improvised Blunt Weapon"),
-        42: ("FORK", "Pointed Object / Fork"),
-        39: ("BOTTLE", "Blunt Projectile / Bottle"),
-        40: ("GLASS", "Glass Object / Weapon Hazard"),
-        44: ("UTENSIL", "Sharp Tool / Utensil"),
-        79: ("TOOL", "Pointed Tool / Blade"),
+        43: ("KNIFE", "Potential knife"),
+        76: ("SCISSORS", "Potential scissors"),
+        34: ("BAT", "Potential baseball bat"),
     }
 
-    def __init__(self, confidence_threshold: float = 0.08, cooldown_seconds: float = 5.0):
+    def __init__(self, confidence_threshold: float = 0.45, cooldown_seconds: float = 15.0):
         self.confidence_threshold = confidence_threshold
         self.cooldown_seconds = cooldown_seconds
         self._last_alert_time: float = 0.0
@@ -123,7 +117,7 @@ class WeaponDetector:
                         timestamp=datetime.now().isoformat(),
                         severity=EventSeverity.CRITICAL.value,
                         status=EventStatus.ACTIVE.value,
-                        description=f"CRITICAL: {threat_label} detected in {zone_id} with {int(conf * 100)}% confidence.",
+                        description=f"Review required: {threat_label} detected in {zone_id} with {int(conf * 100)}% model confidence.",
                         track_id=associated_track_id,
                         details={
                             "threat_type": threat_code,
@@ -309,15 +303,15 @@ class TheftDetector:
 class SlipAndFallDetector:
     """
     Detects slip-and-fall incidents, medical collapses, and prone postures.
-    Uses bounding box aspect ratio dynamics (w/h > 1.15), vertical displacement,
-    and ground-level persistence.
+    Requires an upright-to-prone transition, downward centroid movement, and
+    sustained horizontal posture. A wide box by itself is never a fall.
     """
 
     def __init__(self, aspect_ratio_threshold: float = 1.15, persistence_frames: int = 5, cooldown_seconds: float = 20.0):
         self.aspect_ratio_threshold = aspect_ratio_threshold
         self.persistence_frames = persistence_frames
         self.cooldown_seconds = cooldown_seconds
-        # track_id -> {"prone_frames": int, "alerted": bool}
+        # Per-track temporal posture state. No biometric data is retained.
         self._track_states: Dict[str, Dict[str, Any]] = {}
         self._last_alert_time: float = 0.0
 
@@ -342,18 +336,39 @@ class SlipAndFallDetector:
             h = max(1, bbox[3] - bbox[1])
             aspect_ratio = w / h
 
+            center_y = (bbox[1] + bbox[3]) / 2.0
             if tid not in self._track_states:
-                self._track_states[tid] = {"prone_frames": 0, "alerted": False}
+                self._track_states[tid] = {
+                    "prone_frames": 0,
+                    "alerted": False,
+                    "upright_seen": False,
+                    "upright_center_y": center_y,
+                    "upright_height": h,
+                    "transition_verified": False,
+                }
 
             state = self._track_states[tid]
 
-            # If aspect ratio is wide/horizontal (fallen posture) and minimum size is met
-            if aspect_ratio >= self.aspect_ratio_threshold and max(w, h) >= 40:
+            if aspect_ratio <= 0.85 and h >= 40:
+                state["upright_seen"] = True
+                state["upright_center_y"] = center_y
+                state["upright_height"] = h
+                state["transition_verified"] = False
+                state["prone_frames"] = 0
+            elif aspect_ratio >= self.aspect_ratio_threshold and max(w, h) >= 40:
+                required_drop = max(18.0, float(state["upright_height"]) * 0.18)
+                vertical_drop = center_y - float(state["upright_center_y"])
+                if state["upright_seen"] and vertical_drop >= required_drop:
+                    state["transition_verified"] = True
                 state["prone_frames"] += 1
             else:
                 state["prone_frames"] = max(0, state["prone_frames"] - 1)
 
-            if state["prone_frames"] >= self.persistence_frames and not state["alerted"]:
+            if (
+                state["transition_verified"]
+                and state["prone_frames"] >= self.persistence_frames
+                and not state["alerted"]
+            ):
                 if now_ts - self._last_alert_time > self.cooldown_seconds:
                     self._last_alert_time = now_ts
                     state["alerted"] = True
@@ -366,11 +381,13 @@ class SlipAndFallDetector:
                         timestamp=datetime.now().isoformat(),
                         severity=EventSeverity.CRITICAL.value,
                         status=EventStatus.ACTIVE.value,
-                        description=f"CRITICAL: Slip & fall / medical collapse detected for {tid} (Aspect Ratio: {aspect_ratio:.2f}).",
+                        description=f"Review required: possible fall transition detected for {tid}.",
                         track_id=tid,
                         details={
                             "aspect_ratio": round(aspect_ratio, 2),
                             "prone_frames": state["prone_frames"],
+                            "transition_verified": True,
+                            "vertical_drop": round(center_y - float(state["upright_center_y"]), 1),
                             "zone_id": tr.get("zone_id") or zone_id,
                         }
                     )

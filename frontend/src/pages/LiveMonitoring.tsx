@@ -5,7 +5,6 @@ import {
   Pause,
   Layers,
   Users,
-  Video,
   Laptop,
   Download,
   RefreshCw,
@@ -29,7 +28,6 @@ import {
   Mic,
   Volume1,
   Lock,
-  Sliders,
   Radio,
   FileText,
   Swords,
@@ -47,10 +45,8 @@ import { useStore } from '../context/StoreContext';
 import { apiService } from '../services/api';
 import { SeverityBadge } from '../components/common/SeverityBadge';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { ZonePolygonEditorModal } from '../components/zones/ZonePolygonEditorModal';
 import { VoicePADispatcherModal } from '../components/common/VoicePADispatcherModal';
 import { AuditDossierModal } from '../components/modals/AuditDossierModal';
-import { WebhookManagerModal } from '../components/modals/WebhookManagerModal';
 import { formatDateTime, formatEventType } from '../utils/formatters';
 
 interface SavedSnapshot {
@@ -71,8 +67,8 @@ interface TrackTrailPoint {
 export const LiveMonitoring: React.FC = () => {
   const { cameras, events, setSelectedEvent } = useStore();
   const [selectedCameraId, setSelectedCameraId] = useState<string>('CAM-01');
-  const [selectedSourceType, setSelectedSourceType] = useState<'sample' | 'browser_direct' | 'webcam' | 'rtsp'>('browser_direct');
-  const [customRtspUrl, setCustomRtspUrl] = useState<string>('rtsp://store-cam-01.local/live');
+  const [selectedSourceType, setSelectedSourceType] = useState<'browser_direct' | 'webcam' | 'rtsp'>('browser_direct');
+  const [customRtspUrl, setCustomRtspUrl] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [showZones, setShowZones] = useState<boolean>(true);
   const [showBBoxes, setShowBBoxes] = useState<boolean>(true);
@@ -82,7 +78,6 @@ export const LiveMonitoring: React.FC = () => {
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [isVoiceDispatchEnabled, setIsVoiceDispatchEnabled] = useState<boolean>(true);
   const [isLockdownActive, setIsLockdownActive] = useState<boolean>(false);
-  const [showZoneEditorModal, setShowZoneEditorModal] = useState<boolean>(false);
   const [showVoiceSettingsModal, setShowVoiceSettingsModal] = useState<boolean>(false);
   const [streamError, setStreamError] = useState<boolean>(false);
   const [streamTime, setStreamTime] = useState<string>('');
@@ -90,6 +85,7 @@ export const LiveMonitoring: React.FC = () => {
   const [webcamError, setWebcamError] = useState<string | null>(null);
   const [detectedPersonsCount, setDetectedPersonsCount] = useState<number>(0);
   const [detectedThreatsCount, setDetectedThreatsCount] = useState<number>(0);
+  const [inferenceMs, setInferenceMs] = useState<number | null>(null);
   const [activeAbnormalAlert, setActiveAbnormalAlert] = useState<string | null>(null);
   const [snapshotSuccess, setSnapshotSuccess] = useState<string | null>(null);
   const [savedSnapshots, setSavedSnapshots] = useState<SavedSnapshot[]>([]);
@@ -108,8 +104,6 @@ export const LiveMonitoring: React.FC = () => {
   const isProcessingRef = useRef<boolean>(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const lastThreatBeepTimeRef = useRef<number>(0);
-  const prevFramePixelsRef = useRef<Uint8ClampedArray | null>(null);
-  const smoothedBboxRef = useRef<number[] | null>(null);
 
   useEffect(() => {
     const updateTime = () => {
@@ -241,12 +235,8 @@ export const LiveMonitoring: React.FC = () => {
     setDetectedThreatsCount(0);
     setActiveAbnormalAlert(null);
     trackTrailsRef.current = {};
-    prevFramePixelsRef.current = null;
-    smoothedBboxRef.current = null;
   };
 
-  const [activeThreatSim, setActiveThreatSim] = useState<'NONE' | 'FIGHT' | 'WEAPON' | 'FALL' | 'VAULT' | 'SNATCH'>('NONE');
-  const activeThreatSimRef = useRef<'NONE' | 'FIGHT' | 'WEAPON' | 'FALL' | 'VAULT' | 'SNATCH'>('NONE');
   const [autoCaptureEnabled, setAutoCaptureEnabled] = useState<boolean>(true);
   const autoCaptureEnabledRef = useRef<boolean>(true);
   const [showHardwareGuideModal, setShowHardwareGuideModal] = useState<boolean>(false);
@@ -307,7 +297,7 @@ export const LiveMonitoring: React.FC = () => {
         ctx.font = '10px monospace';
         ctx.fillText(`TIMESTAMP: ${new Date().toISOString()}`, 22, 48);
         ctx.fillStyle = '#38bdf8';
-        ctx.fillText(`CONF: ${(conf * 100).toFixed(0)}% | STATUS: VERIFIED`, 22, 58);
+        ctx.fillText(`CONF: ${(conf * 100).toFixed(0)}% | MODEL DETECTION`, 22, 58);
 
         dataUrl = snapCanvas.toDataURL('image/jpeg', 0.92);
       }
@@ -316,8 +306,9 @@ export const LiveMonitoring: React.FC = () => {
     }
 
     if (dataUrl) {
+      const snapId = `snap_${Date.now()}`;
       const newSnapshot: SavedSnapshot = {
-        id: `snap_${Date.now()}`,
+        id: snapId,
         dataUrl: dataUrl,
         timestamp: new Date().toLocaleString(),
         cameraId: selectedCameraId,
@@ -326,51 +317,18 @@ export const LiveMonitoring: React.FC = () => {
       };
 
       setSavedSnapshots(prev => [newSnapshot, ...prev.slice(0, 49)]);
-      setSnapshotSuccess(`Auto-Captured Evidence: ${threatLabel}`);
-      setTimeout(() => setSnapshotSuccess(null), 3500);
-    }
-  };
+      setSnapshotSuccess(`Auto-Captured & Saved Threat Evidence: ${threatLabel}`);
+      setTimeout(() => setSnapshotSuccess(null), 4000);
 
-  const triggerThreatSimulation = (type: 'NONE' | 'FIGHT' | 'WEAPON' | 'FALL' | 'VAULT' | 'SNATCH') => {
-    setActiveThreatSim(type);
-    activeThreatSimRef.current = type;
-    if (type === 'FIGHT') {
-      setActiveAbnormalAlert('Physical Altercation / Violence Detected in Zone');
-      playSecurityChime();
-      speakSecurityAnnouncement(`Security Alert. Physical altercation detected on ${selectedCameraId}.`);
-      if (autoCaptureEnabledRef.current) {
-        setTimeout(() => captureEvidenceSnapshot('PHYSICAL_ALTERCATION', 0.96), 300);
-      }
-    } else if (type === 'WEAPON') {
-      setActiveAbnormalAlert('Dangerous Weapon / Armed Threat Detected');
-      playSecurityChime();
-      speakSecurityAnnouncement(`Attention security. Armed weapon detected on ${selectedCameraId}.`);
-      if (autoCaptureEnabledRef.current) {
-        setTimeout(() => captureEvidenceSnapshot('ARMED_WEAPON', 0.94), 300);
-      }
-    } else if (type === 'FALL') {
-      setActiveAbnormalAlert('Slip & Fall Medical Emergency Detected');
-      playSecurityChime();
-      speakSecurityAnnouncement(`Attention store staff. Slip and fall medical emergency detected.`);
-      if (autoCaptureEnabledRef.current) {
-        setTimeout(() => captureEvidenceSnapshot('SLIP_AND_FALL', 0.93), 300);
-      }
-    } else if (type === 'VAULT') {
-      setActiveAbnormalAlert('Restricted Area Vault Perimeter Breach');
-      playSecurityChime();
-      speakSecurityAnnouncement(`Emergency Alert. Unauthorized vault entry on ${selectedCameraId}.`);
-      if (autoCaptureEnabledRef.current) {
-        setTimeout(() => captureEvidenceSnapshot('VAULT_PERIMETER_BREACH', 0.97), 300);
-      }
-    } else if (type === 'SNATCH') {
-      setActiveAbnormalAlert('Rapid Shelf Snatching & Theft Detected');
-      playSecurityChime();
-      speakSecurityAnnouncement(`Attention security. Rapid shelf grab and shoplifting detected on ${selectedCameraId}.`);
-      if (autoCaptureEnabledRef.current) {
-        setTimeout(() => captureEvidenceSnapshot('RAPID_SHELF_SNATCH', 0.95), 300);
-      }
-    } else {
-      setActiveAbnormalAlert(null);
+      // Persist snapshot to backend storage
+      apiService.uploadSnapshot({
+        image: dataUrl,
+        event_id: `EVT-${Date.now()}`,
+        camera_id: selectedCameraId,
+        event_type: threatLabel.replace(/[\s\(\)%]/g, '_').toUpperCase(),
+        severity: threatLabel.includes('WEAPON') || threatLabel.includes('FIGHT') ? 'CRITICAL' : 'HIGH',
+        description: `Automated live threat snapshot for ${threatLabel} at ${selectedCameraId}`
+      }).catch(err => console.warn('Snapshot upload to backend:', err));
     }
   };
 
@@ -381,248 +339,83 @@ export const LiveMonitoring: React.FC = () => {
       offscreenCanvasRef.current = document.createElement('canvas');
     }
 
-    processingIntervalRef.current = setInterval(() => {
+    processingIntervalRef.current = setInterval(async () => {
       const video = videoElementRef.current;
       const overlayCanvas = overlayCanvasRef.current;
-      if (!video || !overlayCanvas || video.paused || video.videoWidth === 0) return;
+      if (!video || !overlayCanvas || video.paused || video.videoWidth === 0 || isProcessingRef.current) return;
 
-      const offscreen = offscreenCanvasRef.current!;
-      const targetW = Math.min(640, video.videoWidth);
-      const targetH = Math.round(targetW * (video.videoHeight / video.videoWidth));
-      offscreen.width = targetW;
-      offscreen.height = targetH;
-      const offCtx = offscreen.getContext('2d', { willReadFrequently: true });
-      if (!offCtx) return;
+      isProcessingRef.current = true;
+      try {
+        const offscreen = offscreenCanvasRef.current!;
+        const targetW = Math.min(960, video.videoWidth);
+        const targetH = Math.round(targetW * (video.videoHeight / video.videoWidth));
+        offscreen.width = targetW;
+        offscreen.height = targetH;
+        const offCtx = offscreen.getContext('2d');
+        if (!offCtx) return;
+        offCtx.drawImage(video, 0, 0, targetW, targetH);
 
-      offCtx.drawImage(video, 0, 0, targetW, targetH);
-      const currentFrame = offCtx.getImageData(0, 0, targetW, targetH);
-      const currData = currentFrame.data;
-      const prevData = prevFramePixelsRef.current;
+        const result = await apiService.processBrowserFrame({
+          image: offscreen.toDataURL('image/jpeg', 0.82),
+          camera_id: selectedCameraId,
+          show_zones: showZonesRef.current,
+          show_bboxes: showBBoxesRef.current,
+        });
 
-      let skinPixels = 0;
-      let changedPixels = 0;
-      let minSkinX = targetW, minSkinY = targetH, maxSkinX = 0, maxSkinY = 0;
-      let minDiffX = targetW, minDiffY = targetH, maxDiffX = 0, maxDiffY = 0;
-      let skinCenterXSum = 0;
-      let skinCenterYSum = 0;
-      const step = 4; // High-speed 60fps sampling
-
-      for (let y = 0; y < targetH; y += step) {
-        for (let x = 0; x < targetW; x += step) {
-          const idx = (y * targetW + x) * 4;
-          const r = currData[idx];
-          const g = currData[idx + 1];
-          const b = currData[idx + 2];
-
-          // Human skin chromaticity rules (covers light, medium, tan, and dark skin tones)
-          const maxVal = Math.max(r, Math.max(g, b));
-          const minVal = Math.min(r, Math.min(g, b));
-          const isSkin =
-            r > 50 &&
-            g > 30 &&
-            b > 18 &&
-            r > g &&
-            r > b &&
-            (r - g) >= 6 &&
-            (maxVal - minVal) >= 10;
-
-          if (isSkin) {
-            skinPixels++;
-            skinCenterXSum += x;
-            skinCenterYSum += y;
-            if (x < minSkinX) minSkinX = x;
-            if (x > maxSkinX) maxSkinX = x;
-            if (y < minSkinY) minSkinY = y;
-            if (y > maxSkinY) maxSkinY = y;
-          }
-
-          // Temporal frame difference motion check
-          if (prevData && prevData.length === currData.length) {
-            const diff = (Math.abs(r - prevData[idx]) + Math.abs(g - prevData[idx + 1]) + Math.abs(b - prevData[idx + 2])) / 3;
-            if (diff > 20) {
-              changedPixels++;
-              if (x < minDiffX) minDiffX = x;
-              if (x > maxDiffX) maxDiffX = x;
-              if (y < minDiffY) minDiffY = y;
-              if (y > maxDiffY) maxDiffY = y;
-            }
-          }
-        }
-      }
-
-      const totalSampled = (targetW / step) * (targetH / step);
-      const skinRatio = skinPixels / totalSampled;
-      const changeRatio = changedPixels / totalSampled;
-
-      const faceW = maxSkinX > minSkinX ? maxSkinX - minSkinX : 0;
-      const faceH = maxSkinY > minSkinY ? maxSkinY - minSkinY : 0;
-      const hasSkinCluster = skinRatio >= 0.003 && faceW >= 15 && faceH >= 15;
-      const hasMotionCluster = changeRatio >= 0.010 && (maxDiffX - minDiffX) >= 25;
-
-      let realTracks: any[] = [];
-      let weaponDets: any[] = [];
-      let threatCount = 0;
-
-      if (hasSkinCluster || hasMotionCluster) {
-        let rawMinX = 0, rawMinY = 0, rawMaxX = 0, rawMaxY = 0;
-
-        if (hasSkinCluster) {
-          const faceCenterX = skinCenterXSum / skinPixels;
-          const torsoW = Math.min(targetW * 0.88, Math.max(faceW * 2.2, targetW * 0.44));
-          rawMinX = Math.max(0, Math.round(faceCenterX - torsoW / 2));
-          rawMaxX = Math.min(targetW, Math.round(faceCenterX + torsoW / 2));
-          rawMinY = Math.max(0, Math.round(minSkinY - faceH * 0.25));
-          rawMaxY = Math.min(targetH, Math.round(minSkinY + faceH * 3.6));
-        } else {
-          const boxW = maxDiffX - minDiffX;
-          const boxH = maxDiffY - minDiffY;
-          rawMinX = Math.max(0, Math.round(minDiffX - boxW * 0.1));
-          rawMaxX = Math.min(targetW, Math.round(maxDiffX + boxW * 0.1));
-          rawMinY = Math.max(0, Math.round(minDiffY - boxH * 0.1));
-          rawMaxY = Math.min(targetH, Math.round(maxDiffY + boxH * 0.1));
-        }
-
-        // Kalman / Exponential Moving Average Smoothing to eliminate jitter
-        if (!smoothedBboxRef.current) {
-          smoothedBboxRef.current = [rawMinX, rawMinY, rawMaxX, rawMaxY];
-        } else {
-          const prevB = smoothedBboxRef.current;
-          smoothedBboxRef.current = [
-            Math.round(prevB[0] * 0.70 + rawMinX * 0.30),
-            Math.round(prevB[1] * 0.70 + rawMinY * 0.30),
-            Math.round(prevB[2] * 0.70 + rawMaxX * 0.30),
-            Math.round(prevB[3] * 0.70 + rawMaxY * 0.30),
-          ];
-        }
-
-        const sB = smoothedBboxRef.current;
-        const cx = Math.round((sB[0] + sB[2]) / 2);
-        const cy = Math.round((sB[1] + sB[3]) / 2);
-        const dynamicConf = parseFloat(Math.min(0.97, Math.max(0.88, 0.90 + skinRatio * 3 + changeRatio)).toFixed(2));
-
-        realTracks = [{
-          track_id: 'TRACK-001',
-          bbox: [sB[0], sB[1], sB[2], sB[3]],
-          confidence: dynamicConf,
-          center: [cx, cy],
-          zone_id: cx < targetW * 0.38 ? 'ENTRANCE' : cx > targetW * 0.62 ? 'CHECKOUT-01' : 'AISLE-A',
-        }];
-
+        const tracks = Array.isArray(result.tracks) ? result.tracks : [];
+        const weapons = Array.isArray(result.weapons) ? result.weapons : [];
+        const abandoned = Array.isArray(result.abandoned_objects) ? result.abandoned_objects : [];
         const now = Date.now();
-        if (!trackTrailsRef.current['TRACK-001']) {
-          trackTrailsRef.current['TRACK-001'] = [];
-        }
-        trackTrailsRef.current['TRACK-001'].push({ x: cx, y: cy, time: now });
-        if (trackTrailsRef.current['TRACK-001'].length > 25) {
-          trackTrailsRef.current['TRACK-001'].shift();
-        }
-      } else {
-        smoothedBboxRef.current = null;
-        realTracks = [];
-        trackTrailsRef.current = {};
-      }
+        const activeIds = new Set<string>();
+        tracks.forEach(track => {
+          activeIds.add(track.track_id);
+          const points = trackTrailsRef.current[track.track_id] || [];
+          points.push({ x: track.center[0], y: track.center[1], time: now });
+          trackTrailsRef.current[track.track_id] = points.filter(point => now - point.time < 5000).slice(-30);
+        });
+        Object.keys(trackTrailsRef.current).forEach(trackId => {
+          if (!activeIds.has(trackId)) delete trackTrailsRef.current[trackId];
+        });
 
-      // Handle Simulated Threats from Ref
-      const currentSim = activeThreatSimRef.current;
-      if (currentSim === 'FIGHT') {
-        threatCount = 1;
-        const sB = smoothedBboxRef.current || [Math.round(targetW * 0.2), Math.round(targetH * 0.2), Math.round(targetW * 0.8), Math.round(targetH * 0.9)];
-        const midX = Math.round((sB[0] + sB[2]) / 2);
-        realTracks = [
-          {
-            track_id: 'FIGHT-TRK-01',
-            bbox: [sB[0], sB[1], midX + 15, sB[3]],
-            confidence: 0.96,
-            center: [Math.round((sB[0] + midX) / 2), Math.round((sB[1] + sB[3]) / 2)],
-            zone_id: 'AISLE-A',
-          },
-          {
-            track_id: 'FIGHT-TRK-02',
-            bbox: [midX - 15, sB[1], sB[2], sB[3]],
-            confidence: 0.94,
-            center: [Math.round((midX + sB[2]) / 2), Math.round((sB[1] + sB[3]) / 2)],
-            zone_id: 'AISLE-A',
-          }
-        ];
-      } else if (currentSim === 'WEAPON') {
-        threatCount = 1;
-        const sB = smoothedBboxRef.current || [Math.round(targetW * 0.25), Math.round(targetH * 0.2), Math.round(targetW * 0.75), Math.round(targetH * 0.9)];
-        weaponDets = [{
-          threat_type: 'WEAPON_DETECTED',
-          threat_label: 'FIREARM / BLADE',
-          confidence: 0.94,
-          bbox: [sB[0] + 20, Math.round(sB[1] + (sB[3] - sB[1]) * 0.4), sB[0] + 130, Math.round(sB[1] + (sB[3] - sB[1]) * 0.65)],
-          center: [sB[0] + 75, Math.round(sB[1] + (sB[3] - sB[1]) * 0.52)],
-        }];
-      } else if (currentSim === 'FALL') {
-        threatCount = 1;
-        realTracks = [{
-          track_id: 'FALL-VICTIM-01',
-          bbox: [Math.round(targetW * 0.15), Math.round(targetH * 0.58), Math.round(targetW * 0.85), Math.round(targetH * 0.92)],
-          confidence: 0.93,
-          center: [Math.round(targetW * 0.5), Math.round(targetH * 0.75)],
-          zone_id: 'ENTRANCE',
-        }];
-      } else if (currentSim === 'VAULT') {
-        threatCount = 1;
-        realTracks = [{
-          track_id: 'INTRUSION-VAULT-01',
-          bbox: [Math.round(targetW * 0.65), Math.round(targetH * 0.2), Math.round(targetW * 0.95), Math.round(targetH * 0.88)],
-          confidence: 0.97,
-          center: [Math.round(targetW * 0.8), Math.round(targetH * 0.54)],
-          zone_id: 'STAFF-STORAGE',
-        }];
-      } else if (currentSim === 'SNATCH') {
-        threatCount = 1;
-        const sB = smoothedBboxRef.current || [Math.round(targetW * 0.32), Math.round(targetH * 0.2), Math.round(targetW * 0.72), Math.round(targetH * 0.9)];
-        realTracks = [{
-          track_id: 'SNATCH-THEFT-01',
-          bbox: [sB[0], sB[1], sB[2], sB[3]],
-          confidence: 0.95,
-          center: [Math.round((sB[0] + sB[2]) / 2), Math.round((sB[1] + sB[3]) / 2)],
-          zone_id: 'AISLE-A',
-        }];
-      }
+        setDetectedPersonsCount(result.people_count);
+        setDetectedThreatsCount(result.threat_count || 0);
+        setInferenceMs(typeof result.inference_ms === 'number' ? result.inference_ms : null);
+        const abnormalEvents = Array.isArray(result.abnormal_events) ? result.abnormal_events : [];
+        setActiveAbnormalAlert(abnormalEvents[0]?.description || null);
 
-      // Auto-Capture Threat or Person Evidence Snapshot (every 7s when subjects present)
-      if (autoCaptureEnabledRef.current && (threatCount > 0 || realTracks.length > 0)) {
-        const now = Date.now();
-        if (now - lastAutoCaptureTimeRef.current > 7000) {
+        const parentW = overlayCanvas.parentElement?.clientWidth || video.clientWidth;
+        const parentH = overlayCanvas.parentElement?.clientHeight || video.clientHeight;
+        if (overlayCanvas.width !== parentW || overlayCanvas.height !== parentH) {
+          overlayCanvas.width = parentW;
+          overlayCanvas.height = parentH;
+        }
+        const ctx = overlayCanvas.getContext('2d');
+        if (ctx) {
+          drawOverlaysOnCanvas(
+            ctx,
+            tracks,
+            weapons,
+            abandoned,
+            result.frame_width || targetW,
+            result.frame_height || targetH,
+            overlayCanvas.width,
+            overlayCanvas.height
+          );
+        }
+
+        if (autoCaptureEnabledRef.current && (result.threat_count || 0) > 0 && now - lastAutoCaptureTimeRef.current > 7000) {
           lastAutoCaptureTimeRef.current = now;
-          const threatTag = currentSim !== 'NONE'
-            ? currentSim
-            : realTracks[0]?.track_id || 'HUMAN_PRESENCE';
-          const conf = realTracks[0]?.confidence || 0.95;
-          setTimeout(() => captureEvidenceSnapshot(threatTag, conf), 100);
+          setTimeout(() => captureEvidenceSnapshot(abnormalEvents[0]?.event_type || 'DETECTED_THREAT', weapons[0]?.confidence || 0), 100);
         }
+      } catch (error: any) {
+        setWebcamError(error?.response?.data?.detail || error?.message || 'Live analysis request failed.');
+        setDetectedPersonsCount(0);
+        setDetectedThreatsCount(0);
+        setInferenceMs(null);
+      } finally {
+        isProcessingRef.current = false;
       }
-
-      prevFramePixelsRef.current = new Uint8ClampedArray(currData);
-
-      setDetectedPersonsCount(realTracks.length);
-      setDetectedThreatsCount(threatCount);
-
-      const parentW = overlayCanvas.parentElement ? overlayCanvas.parentElement.clientWidth : video.clientWidth;
-      const parentH = overlayCanvas.parentElement ? overlayCanvas.parentElement.clientHeight : video.clientHeight;
-      if (overlayCanvas.width !== parentW || overlayCanvas.height !== parentH) {
-        overlayCanvas.width = parentW;
-        overlayCanvas.height = parentH;
-      }
-
-      const ctx = overlayCanvas.getContext('2d');
-      if (ctx) {
-        drawOverlaysOnCanvas(
-          ctx,
-          realTracks,
-          weaponDets,
-          [],
-          targetW,
-          targetH,
-          overlayCanvas.width,
-          overlayCanvas.height
-        );
-      }
-    }, 100);
+    }, 750);
   };
 
   const drawOverlaysOnCanvas = (
@@ -662,6 +455,11 @@ export const LiveMonitoring: React.FC = () => {
 
     const scaleX = renderW / origW;
     const scaleY = renderH / origH;
+    const trackColor = (trackId: string) => {
+      const palette = ['#2563eb', '#7c3aed', '#0891b2', '#059669', '#ca8a04', '#ea580c', '#db2777', '#4f46e5'];
+      const hash = Array.from(trackId).reduce((value, character) => ((value * 31) + character.charCodeAt(0)) >>> 0, 0);
+      return palette[hash % palette.length];
+    };
 
     // 1. Draw Zones (Subtle dashed security zones)
     if (showZonesRef.current) {
@@ -716,7 +514,7 @@ export const LiveMonitoring: React.FC = () => {
       Object.entries(trackTrailsRef.current).forEach(([tid, pts]) => {
         if (pts.length > 1) {
           ctx.beginPath();
-          ctx.strokeStyle = 'rgba(16, 185, 129, 0.75)';
+          ctx.strokeStyle = trackColor(tid);
           ctx.lineWidth = 2.5;
           ctx.setLineDash([3, 3]);
 
@@ -735,13 +533,13 @@ export const LiveMonitoring: React.FC = () => {
           const ly = offsetY + (lastPt.y * scaleY);
           ctx.beginPath();
           ctx.arc(lx, ly, 4, 0, 2 * Math.PI);
-          ctx.fillStyle = '#10b981';
+          ctx.fillStyle = trackColor(tid);
           ctx.fill();
         }
       });
     }
 
-    // 4. Draw Tracks (Pixel-perfect bounding boxes with threat classification)
+    // 4. Draw anonymous person tracks returned by the backend.
     if (showBBoxesRef.current && tracks) {
       tracks.forEach(tr => {
         const [x1, y1, x2, y2] = tr.bbox;
@@ -750,69 +548,18 @@ export const LiveMonitoring: React.FC = () => {
         const dw = (x2 - x1) * scaleX;
         const dh = (y2 - y1) * scaleY;
 
-        const isFight = tr.track_id.startsWith('FIGHT');
-        const isFall = tr.track_id.startsWith('FALL');
-        const isVault = tr.track_id.startsWith('INTRUSION');
-        const isSnatch = tr.track_id.startsWith('SNATCH');
+        const personColor = trackColor(tr.track_id);
+        ctx.strokeStyle = personColor;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(dx1, dy1, dw, dh);
 
-        // Bounding Box Colors and Labels
-        if (isFight) {
-          ctx.strokeStyle = '#e11d48'; // Rose-600
-          ctx.lineWidth = 3.5;
-          ctx.strokeRect(dx1, dy1, dw, dh);
-
-          const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
-          ctx.fillStyle = '#be123c';
-          ctx.fillRect(dx1, pillY, 195, 20);
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(`ALTERCATION: ${tr.track_id}`, dx1 + 6, pillY + 14);
-        } else if (isFall) {
-          ctx.strokeStyle = '#d97706'; // Amber-600
-          ctx.lineWidth = 3.5;
-          ctx.strokeRect(dx1, dy1, dw, dh);
-
-          const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
-          ctx.fillStyle = '#b45309';
-          ctx.fillRect(dx1, pillY, 210, 20);
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(`MEDICAL: SLIP & FALL (93%)`, dx1 + 6, pillY + 14);
-        } else if (isVault) {
-          ctx.strokeStyle = '#7e22ce'; // Purple-700
-          ctx.lineWidth = 3.5;
-          ctx.strokeRect(dx1, dy1, dw, dh);
-
-          const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
-          ctx.fillStyle = '#6b21a8';
-          ctx.fillRect(dx1, pillY, 215, 20);
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(`VAULT INTRUSION: SEC-01`, dx1 + 6, pillY + 14);
-        } else if (isSnatch) {
-          ctx.strokeStyle = '#ea580c'; // Orange-600
-          ctx.lineWidth = 3.5;
-          ctx.strokeRect(dx1, dy1, dw, dh);
-
-          const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
-          ctx.fillStyle = '#c2410c';
-          ctx.fillRect(dx1, pillY, 225, 20);
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(`THEFT: SHELF SNATCH (95%)`, dx1 + 6, pillY + 14);
-        } else {
-          ctx.strokeStyle = '#831843'; // Brand-800
-          ctx.lineWidth = 3;
-          ctx.strokeRect(dx1, dy1, dw, dh);
-
-          const label = `${tr.track_id} (${Math.round(tr.confidence * 100)}%)`;
-          const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
-          ctx.fillStyle = '#831843';
-          ctx.fillRect(dx1, pillY, 125, 20);
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 11px monospace';
-          ctx.fillText(label, dx1 + 5, pillY + 14);
-        }
+        const label = `${tr.track_id} (${Math.round(tr.confidence * 100)}%)`;
+        const pillY = dy1 > (offsetY + 35) ? dy1 - 22 : dy1 + 4;
+        ctx.fillStyle = personColor;
+        ctx.fillRect(dx1, pillY, 130, 20);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(label, dx1 + 5, pillY + 14);
 
         // Centroid Indicator
         if (tr.center) {
@@ -820,32 +567,10 @@ export const LiveMonitoring: React.FC = () => {
           const cy = offsetY + (tr.center[1] * scaleY);
           ctx.beginPath();
           ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
-          ctx.fillStyle = isFight ? '#e11d48' : isFall ? '#d97706' : '#10b981';
+          ctx.fillStyle = personColor;
           ctx.fill();
         }
       });
-
-      // If multiple fight tracks, draw altercation dynamic collision vector
-      const fightTracks = tracks.filter(t => t.track_id.startsWith('FIGHT'));
-      if (fightTracks.length >= 2) {
-        const c1 = fightTracks[0].center;
-        const c2 = fightTracks[1].center;
-        if (c1 && c2) {
-          const px1 = offsetX + (c1[0] * scaleX);
-          const py1 = offsetY + (c1[1] * scaleY);
-          const px2 = offsetX + (c2[0] * scaleX);
-          const py2 = offsetY + (c2[1] * scaleY);
-
-          ctx.strokeStyle = '#e11d48';
-          ctx.lineWidth = 3;
-          ctx.setLineDash([5, 5]);
-          ctx.beginPath();
-          ctx.moveTo(px1, py1);
-          ctx.lineTo(px2, py2);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
     }
 
     // 5. Draw Detected Weapons / Dangerous Objects
@@ -899,12 +624,9 @@ export const LiveMonitoring: React.FC = () => {
   };
 
   const getStreamSourceParam = (camId: string = selectedCameraId) => {
-    if (camId === 'CAM-01') {
-      if (selectedSourceType === 'webcam') return '0';
-      if (selectedSourceType === 'rtsp') return customRtspUrl;
-      return 'sample';
-    }
-    return 'sample';
+    if (selectedSourceType === 'webcam') return '0';
+    if (selectedSourceType === 'rtsp' && customRtspUrl.trim()) return customRtspUrl.trim();
+    return cameras.find(camera => camera.camera_id === camId)?.stream_source || '';
   };
 
   const streamUrl = apiService.getVideoStreamUrl(
@@ -919,8 +641,8 @@ export const LiveMonitoring: React.FC = () => {
 
   const activeCamera = safeCameras.find(c => c.camera_id === selectedCameraId) || {
     camera_id: selectedCameraId,
-    camera_name: selectedCameraId === 'CAM-01' ? 'North Entrance & Aisle A' : selectedCameraId === 'CAM-02' ? 'Checkout Area & Storage Door' : selectedCameraId === 'CAM-03' ? 'Grocery Aisles' : 'Rear Loading Dock',
-    location: selectedCameraId === 'CAM-01' ? 'North Hall' : selectedCameraId === 'CAM-02' ? 'Front Cashier' : selectedCameraId === 'CAM-03' ? 'Central Rows' : 'Loading Bay',
+    camera_name: 'Unregistered camera',
+    location: 'Location unavailable',
     status: 'ACTIVE',
   };
 
@@ -985,21 +707,21 @@ export const LiveMonitoring: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-4 shadow-xs border border-slate-200">
         {/* Camera Selector Tabs */}
         <div className="flex flex-wrap items-center gap-2">
-          {['CAM-01', 'CAM-02', 'CAM-03', 'CAM-04'].map(camId => (
+          {safeCameras.map(camera => (
             <button
-              key={camId}
+              key={camera.camera_id}
               onClick={() => {
-                setSelectedCameraId(camId);
+                setSelectedCameraId(camera.camera_id);
                 setStreamError(false);
               }}
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-                selectedCameraId === camId
-                  ? 'bg-brand-700 text-white shadow-xs'
+                selectedCameraId === camera.camera_id
+                  ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               <CameraIcon className="h-3.5 w-3.5" />
-              <span>{camId}</span>
+              <span>{camera.camera_id}</span>
             </button>
           ))}
         </div>
@@ -1011,7 +733,7 @@ export const LiveMonitoring: React.FC = () => {
               onClick={() => setViewMode('single')}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition-all ${
                 viewMode === 'single'
-                  ? 'bg-white text-brand-800 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1022,12 +744,12 @@ export const LiveMonitoring: React.FC = () => {
               onClick={() => setViewMode('quad')}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition-all ${
                 viewMode === 'quad'
-                  ? 'bg-white text-brand-800 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Grid className="h-3.5 w-3.5" />
-              <span>Quad Matrix (4x)</span>
+              <span>Camera Matrix</span>
             </button>
           </div>
 
@@ -1039,27 +761,12 @@ export const LiveMonitoring: React.FC = () => {
               }}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition-all ${
                 selectedSourceType === 'browser_direct'
-                  ? 'bg-white text-brand-800 shadow-xs'
+                  ? 'bg-white text-blue-700 shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Laptop className="h-3.5 w-3.5 text-purple-600" />
+              <Laptop className="h-3.5 w-3.5 text-blue-600" />
               <span>Laptop Webcam</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setSelectedSourceType('sample');
-                setStreamError(false);
-              }}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition-all ${
-                selectedSourceType === 'sample'
-                  ? 'bg-white text-brand-800 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Video className="h-3.5 w-3.5 text-brand-600" />
-              <span>CCTV Video</span>
             </button>
 
             <button
@@ -1069,7 +776,7 @@ export const LiveMonitoring: React.FC = () => {
               }}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition-all ${
                 selectedSourceType === 'rtsp'
-                  ? 'bg-white text-brand-800 shadow-xs'
+                  ? 'bg-white text-blue-700 shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1085,7 +792,7 @@ export const LiveMonitoring: React.FC = () => {
             className={`rounded-xl border p-2 text-xs transition-colors ${
               isAudioMuted
                 ? 'border-slate-200 bg-slate-100 text-slate-400'
-                : 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
             }`}
           >
             {isAudioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -1120,23 +827,23 @@ export const LiveMonitoring: React.FC = () => {
           {viewMode === 'quad' ? (
             /* Quad CCTV Matrix Grid (2x2) */
             <div className="grid grid-cols-2 gap-3 aspect-video w-full rounded-2xl bg-slate-950 p-2 border border-slate-800 shadow-md">
-              {['CAM-01', 'CAM-02', 'CAM-03', 'CAM-04'].map((camId, idx) => (
+              {safeCameras.filter(camera => camera.stream_source).slice(0, 4).map(camera => (
                 <div
-                  key={camId}
+                  key={camera.camera_id}
                   onClick={() => {
-                    setSelectedCameraId(camId);
+                    setSelectedCameraId(camera.camera_id);
                     setViewMode('single');
                   }}
                   className="relative overflow-hidden rounded-xl bg-slate-900 border border-slate-800 group cursor-pointer flex items-center justify-center"
                 >
                   <img
-                    src={apiService.getVideoStreamUrl(camId, 'sample', showZones, showBBoxes)}
-                    alt={`${camId} Live Stream`}
+                    src={apiService.getVideoStreamUrl(camera.camera_id, camera.stream_source!, showZones, showBBoxes)}
+                    alt={`${camera.camera_name} live stream`}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute top-2 left-2 flex items-center space-x-1.5 rounded-lg bg-slate-900/80 px-2 py-1 text-[10px] font-mono text-white backdrop-blur-xs border border-white/10">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    <span>{camId}</span>
+                    <span>{camera.camera_id}</span>
                   </div>
                   <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-brand-700 px-2 py-1 text-[10px] font-semibold text-white">
                     Click to Enlarge
@@ -1198,19 +905,20 @@ export const LiveMonitoring: React.FC = () => {
                     </p>
                     <p className="text-xs text-slate-400">
                       {streamError
-                        ? 'Switch source to Laptop Webcam or CCTV Video.'
+                        ? 'Check the configured camera source or use this browser camera.'
                         : 'Click Resume Stream to restart live video.'}
                     </p>
                     {streamError && (
                       <button
                         onClick={() => {
                           setStreamError(false);
-                          setSelectedSourceType('sample');
+                          setSelectedSourceType('browser_direct');
+                          startWebcam();
                         }}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-brand-700 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-800 transition-colors"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
-                        Switch to CCTV Feed
+                        Use Browser Camera
                       </button>
                     )}
                   </div>
@@ -1252,10 +960,15 @@ export const LiveMonitoring: React.FC = () => {
                       ? `${detectedPersonsCount} Person(s) Detected`
                       : 'YOLOv8 Threat Intelligence Active'}
                   </span>
+                  {selectedSourceType === 'browser_direct' && (
+                    <span className="text-slate-400">• unique color per tracked person</span>
+                  )}
                 </div>
 
                 <div className="rounded-xl bg-slate-900/80 px-3 py-1 text-[11px] font-mono text-slate-300 backdrop-blur-xs border border-white/10">
-                  {selectedSourceType === 'browser_direct' ? 'Live Camera Feed' : 'HD 1080p'}
+                  {selectedSourceType === 'browser_direct'
+                    ? `Real inference • 40%+ confidence${inferenceMs !== null ? ` • ${Math.round(inferenceMs)} ms` : ''}`
+                    : 'Live processed stream'}
                 </div>
               </div>
             </div>
@@ -1321,43 +1034,35 @@ export const LiveMonitoring: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setShowZoneEditorModal(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <Sliders className="h-3.5 w-3.5 text-purple-600" />
-                <span>Zone Config</span>
-              </button>
-
-              <button
                 onClick={() => setShowVoiceSettingsModal(true)}
                 className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-colors ${
                   isVoiceDispatchEnabled
-                    ? 'border-purple-300 bg-purple-50 text-purple-800'
+                    ? 'border-blue-200 bg-blue-50 text-blue-800'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                <Mic className="h-3.5 w-3.5 text-purple-600" />
-                <span>Voice PA</span>
+                <Mic className="h-3.5 w-3.5 text-blue-600" />
+                <span>Local Voice</span>
               </button>
 
               <button
                 onClick={() => setAutoCaptureEnabled(!autoCaptureEnabled)}
                 className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-colors ${
                   autoCaptureEnabled
-                    ? 'border-brand-300 bg-brand-50 text-brand-800'
+                    ? 'border-blue-300 bg-blue-50 text-blue-800'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
-                title="Automatically capture forensic snapshot when subjects or threats are detected"
+              title="Automatically capture evidence when the model reports a supported threat"
               >
-                <Sparkles className={`h-3.5 w-3.5 ${autoCaptureEnabled ? 'text-brand-600' : 'text-slate-400'}`} />
+                <Sparkles className={`h-3.5 w-3.5 ${autoCaptureEnabled ? 'text-blue-600' : 'text-slate-400'}`} />
                 <span>{autoCaptureEnabled ? 'Auto-Snapping: ON' : 'Auto-Snapping: OFF'}</span>
               </button>
 
               <button
                 onClick={() => setShowHardwareGuideModal(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
               >
-                <BookOpen className="h-3.5 w-3.5" />
+                <BookOpen className="h-3.5 w-3.5 text-blue-600" />
                 <span>Camera Hardware Guide</span>
               </button>
 
@@ -1372,9 +1077,9 @@ export const LiveMonitoring: React.FC = () => {
               {savedSnapshots.length > 0 && (
                 <button
                   onClick={() => setShowGalleryModal(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-3.5 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition-colors"
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
                 >
-                  <ImageIcon className="h-3.5 w-3.5" />
+                  <ImageIcon className="h-3.5 w-3.5 text-slate-600" />
                   <span>Gallery ({savedSnapshots.length})</span>
                 </button>
               )}
@@ -1387,7 +1092,7 @@ export const LiveMonitoring: React.FC = () => {
                   const nextState = !isLockdownActive;
                   setIsLockdownActive(nextState);
                   if (nextState) {
-                    speakSecurityAnnouncement('EMERGENCY LOCKDOWN INITIATED. ALL GATES SECURED.');
+                    speakSecurityAnnouncement('Local operator alert enabled in this browser.');
                   }
                 }}
                 className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-xs ${
@@ -1397,7 +1102,7 @@ export const LiveMonitoring: React.FC = () => {
                 }`}
               >
                 <Lock className="h-3.5 w-3.5" />
-                <span>{isLockdownActive ? 'LOCKDOWN ACTIVE' : 'Initiate Lockdown'}</span>
+                <span>{isLockdownActive ? 'LOCAL ALERT ACTIVE' : 'Enable Local Alert'}</span>
               </button>
             </div>
 
@@ -1409,168 +1114,44 @@ export const LiveMonitoring: React.FC = () => {
             )}
           </div>
 
-          {/* AI Threat & Incident Simulation Control Matrix */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center space-x-2">
-                <ShieldAlert className="h-4 w-4 text-rose-600" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  AI Threat & Incident Detection Matrix
-                </span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-mono text-slate-600 font-semibold">
-                  Autonomous Vision Live
-                </span>
-              </div>
-              {activeThreatSim !== 'NONE' && (
-                <span className="flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-xs font-bold text-rose-700 animate-pulse">
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
-                  Simulation Active: {activeThreatSim}
-                </span>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
-              <button
-                onClick={() => triggerThreatSimulation('NONE')}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
-                  activeThreatSim === 'NONE'
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-xs ring-1 ring-emerald-400'
-                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-slate-900'
-                }`}
-              >
-                <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                <span>Normal / Disarm</span>
-              </button>
-
-              <button
-                onClick={() => triggerThreatSimulation('FIGHT')}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
-                  activeThreatSim === 'FIGHT'
-                    ? 'border-rose-500 bg-rose-50 text-rose-800 shadow-xs ring-1 ring-rose-400 animate-pulse'
-                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-rose-700'
-                }`}
-              >
-                <Swords className="h-4 w-4 text-rose-600" />
-                <span>Fight / Violence</span>
-              </button>
-
-              <button
-                onClick={() => triggerThreatSimulation('WEAPON')}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
-                  activeThreatSim === 'WEAPON'
-                    ? 'border-red-600 bg-red-50 text-red-800 shadow-xs ring-1 ring-red-500 animate-pulse'
-                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-red-700'
-                }`}
-              >
-                <Crosshair className="h-4 w-4 text-red-600" />
-                <span>Armed Threat</span>
-              </button>
-
-              <button
-                onClick={() => triggerThreatSimulation('FALL')}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
-                  activeThreatSim === 'FALL'
-                    ? 'border-amber-500 bg-amber-50 text-amber-800 shadow-xs ring-1 ring-amber-400'
-                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-amber-700'
-                }`}
-              >
-                <HeartPulse className="h-4 w-4 text-amber-600" />
-                <span>Slip & Fall</span>
-              </button>
-
-              <button
-                onClick={() => triggerThreatSimulation('SNATCH')}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
-                  activeThreatSim === 'SNATCH'
-                    ? 'border-orange-500 bg-orange-50 text-orange-800 shadow-xs ring-1 ring-orange-400 animate-pulse'
-                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-orange-700'
-                }`}
-              >
-                <ShoppingBag className="h-4 w-4 text-orange-600" />
-                <span>Shelf Snatch</span>
-              </button>
-
-              <button
-                onClick={() => triggerThreatSimulation('VAULT')}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${
-                  activeThreatSim === 'VAULT'
-                    ? 'border-purple-500 bg-purple-50 text-purple-800 shadow-xs ring-1 ring-purple-400'
-                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-purple-700'
-                }`}
-              >
-                <Lock className="h-4 w-4 text-purple-600" />
-                <span>Vault Intrusion</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Emergency Lockdown Active Alert Bar */}
+          {/* Local browser alert; no physical access-control integration is configured. */}
           {isLockdownActive && (
             <div className="flex items-center justify-between rounded-2xl bg-red-700 px-5 py-3 text-white shadow-lg animate-pulse border-2 border-red-500">
               <div className="flex items-center space-x-3">
                 <Lock className="h-6 w-6 text-white animate-bounce" />
                 <div>
-                  <h4 className="text-sm font-bold uppercase tracking-wider">EMERGENCY STORE LOCKDOWN IN PROGRESS</h4>
-                  <p className="text-xs text-red-100">All automated security perimeter gates locked. Local law enforcement dispatch alert broadcasted.</p>
+                  <h4 className="text-sm font-bold uppercase tracking-wider">LOCAL OPERATOR ALERT ACTIVE</h4>
+                  <p className="text-xs text-red-100">On-screen and audible warnings are active in this browser.</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsLockdownActive(false)}
                 className="rounded-xl bg-white px-4 py-1.5 text-xs font-bold text-red-800 hover:bg-red-50 transition-colors"
               >
-                Disengage Lockdown
+                Clear Local Alert
               </button>
             </div>
           )}
 
-          {/* Live Zone Real-Time Occupancy Gauges */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* Measurements reported by the active browser camera analysis. */}
+          <div className="grid grid-cols-1 gap-3">
             <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-700">Entrance Zone</span>
-                <span className="font-mono text-purple-700 font-bold">
-                  {selectedSourceType === 'browser_direct' ? detectedPersonsCount : 4} / 8
+                <span className="font-mono text-blue-700 font-bold">
+                  {selectedSourceType === 'browser_direct' ? detectedPersonsCount : 'Unavailable'}
                 </span>
               </div>
               <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-purple-600 transition-all duration-300"
+                  className="h-full rounded-full bg-blue-600 transition-all duration-300"
                   style={{
-                    width: `${Math.min(100, ((selectedSourceType === 'browser_direct' ? detectedPersonsCount : 4) / 8) * 100)}%`,
+                    width: selectedSourceType === 'browser_direct' ? `${Math.min(100, detectedPersonsCount * 10)}%` : '0%',
                   }}
                 />
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700">Aisle A (Snacks)</span>
-                <span className="font-mono text-blue-700 font-bold">3 / 6</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full rounded-full bg-blue-600 transition-all duration-300" style={{ width: '50%' }} />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700">Checkout 1</span>
-                <span className="font-mono text-amber-700 font-bold">4 / 4</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full rounded-full bg-amber-500 transition-all duration-300" style={{ width: '100%' }} />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700">Staff Storage</span>
-                <span className="font-mono text-rose-700 font-bold">0 Breach</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full rounded-full bg-emerald-500 transition-all duration-300" style={{ width: '0%' }} />
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1624,14 +1205,6 @@ export const LiveMonitoring: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Zone Interactive Polygon Editor Modal */}
-      {showZoneEditorModal && (
-        <ZonePolygonEditorModal
-          cameraId={selectedCameraId}
-          onClose={() => setShowZoneEditorModal(false)}
-        />
-      )}
 
       {/* Voice Dispatcher PA Modal */}
       {showVoiceSettingsModal && (
@@ -1732,10 +1305,10 @@ export const LiveMonitoring: React.FC = () => {
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-2">
                 <div className="flex items-center gap-2 font-bold text-slate-900">
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-700 text-[10px] text-white">1</span>
-                  <span>Laptop / USB Webcam Direct Hardware Feed (Zero Latency)</span>
+                  <span>Laptop / USB Webcam Direct Hardware Feed</span>
                 </div>
                 <p className="text-slate-600 leading-relaxed">
-                  Select <strong className="text-slate-900">"Laptop Webcam"</strong> from the top source selector bar. Your browser will prompt for camera access. The hardware video stream feeds directly into the client-side vision AI model at 60-100 FPS with instant skin chromaticity, temporal movement tracking, and zero cloud latency.
+                  Select <strong className="text-slate-900">"Laptop Webcam"</strong> from the top source selector bar. After camera permission is granted, frames are securely submitted to the configured backend detector. The monitor reports measured inference latency when results arrive.
                 </p>
               </div>
 
@@ -1779,7 +1352,7 @@ export const LiveMonitoring: React.FC = () => {
                   <span>Automated Evidence Capture & Forensic Stamping</span>
                 </div>
                 <p className="text-slate-600 leading-relaxed">
-                  When <strong className="text-slate-900">"Auto-Snapping"</strong> is active, every detected person and threat (Fight, Weapon, Fall, Snatch, Vault Breach) is automatically composited with bounding boxes, camera ID, UTC timestamp, and confidence rating into the <strong>Gallery</strong>. You can click <strong>Capture Snapshot</strong> anytime to save manual high-res evidence.
+                  When <strong className="text-slate-900">"Auto-Snapping"</strong> is active, a model-detected threat is captured with its bounding boxes, camera ID, UTC timestamp, and confidence rating in the <strong>Gallery</strong>. A trained operator must review model detections before treating them as verified incidents. You can click <strong>Capture Snapshot</strong> anytime to save manual evidence.
                 </p>
               </div>
             </div>

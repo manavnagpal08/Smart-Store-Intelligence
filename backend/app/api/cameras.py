@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from backend.app.database.session import get_db
 from backend.app.schemas.camera import CameraResponse, CameraCreate
 from backend.app.services.camera_service import CameraService
+from backend.app.security import require_api_key
 
 router = APIRouter(prefix="/cameras", tags=["Cameras"])
 
@@ -27,6 +28,6 @@ def get_camera(camera_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=CameraResponse, status_code=201)
-def create_camera(camera: CameraCreate, db: Session = Depends(get_db)):
+def create_camera(camera: CameraCreate, db: Session = Depends(get_db), _: None = Depends(require_api_key)):
     """Register or update a CCTV camera."""
     return CameraService.create_or_update(db, camera)
