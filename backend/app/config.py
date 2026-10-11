@@ -28,14 +28,14 @@ class Settings(BaseSettings):
     ENABLE_SAMPLE_VIDEO: bool = os.getenv("ENABLE_SAMPLE_VIDEO", "false").lower() in ("1", "true", "yes")
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     API_KEY: str = os.getenv("API_KEY", "")
-    TRUSTED_HOSTS: str = os.getenv("TRUSTED_HOSTS", "localhost,127.0.0.1,testserver")
+    TRUSTED_HOSTS: str = os.getenv("TRUSTED_HOSTS", "*")
 
     # CORS (Pure str to prevent pydantic-settings decode_complex_value error)
-    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "*")
 
     @property
     def cors_origins_list(self) -> List[str]:
-        if not self.CORS_ORIGINS:
+        if not self.CORS_ORIGINS or "*" in str(self.CORS_ORIGINS):
             return ["*"]
         val = str(self.CORS_ORIGINS).strip()
         if val == "*":
@@ -51,6 +51,8 @@ class Settings(BaseSettings):
 
     @property
     def trusted_hosts_list(self) -> List[str]:
+        if not self.TRUSTED_HOSTS or "*" in self.TRUSTED_HOSTS:
+            return ["*"]
         return [item.strip() for item in self.TRUSTED_HOSTS.split(",") if item.strip()]
 
     @model_validator(mode="after")
